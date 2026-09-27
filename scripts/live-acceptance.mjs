@@ -47,6 +47,30 @@ await writeFile(
 );
 const config = {
   provider: { type: 'codex', executable: 'codex' },
+  ...(process.env.PITCREW_ACCEPTANCE_FAILOVER === '1'
+    ? {
+        routing: {
+          profile: 'balanced',
+          providers: [
+            {
+              id: 'unavailable',
+              provider: {
+                type: 'codex',
+                executable: 'pitcrew-deliberately-missing-provider',
+              },
+              roles: ['implementer'],
+              maxContextChars: 200000,
+            },
+            {
+              id: 'codex',
+              provider: { type: 'codex', executable: 'codex' },
+              roles: ['implementer'],
+              maxContextChars: 200000,
+            },
+          ],
+        },
+      }
+    : {}),
   execution: { allowReducedIsolation: true },
   referee: {
     executable: process.execPath,

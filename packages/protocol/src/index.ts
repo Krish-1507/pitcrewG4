@@ -33,9 +33,13 @@ export const providerSchema = z.discriminatedUnion('type', [
     .strict(),
   z
     .object({
-      type: z.literal('openai-compatible'),
+      type: z.enum(['openai-compatible', 'freellmapi', 'ollama']),
       baseUrl: z.string().url(),
       model: z.string().min(1),
+      secretRef: z
+        .string()
+        .regex(/^keychain:pitcrew\/prov_[a-f0-9-]+$/)
+        .optional(),
       apiKeyEnv: z
         .string()
         .regex(/^[A-Z][A-Z0-9_]*$/)
@@ -47,6 +51,36 @@ export type ProviderConfig = z.infer<typeof providerSchema>;
 export const configSchema = z
   .object({
     provider: providerSchema,
+    routing: z
+      .object({
+        profile: z.enum(['economy', 'balanced', 'deep', 'local', 'manual']),
+        providers: z
+          .array(
+            z
+              .object({
+                id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
+                provider: providerSchema,
+                roles: z.array(z.string().min(1)).min(1),
+                enabled: z.boolean().default(true),
+                local: z.boolean().default(false),
+                highRisk: z.boolean().default(false),
+                tools: z.boolean().default(false),
+                maxContextChars: z.number().int().positive().max(2000000),
+                estimatedCostUsd: z.number().finite().nonnegative().optional(),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(16),
+      })
+      .strict()
+      .refine(
+        (value) =>
+          new Set(value.providers.map((p) => p.id)).size ===
+          value.providers.length,
+        'Duplicate provider route id',
+      )
+      .optional(),
     execution: z
       .object({
         allowReducedIsolation: z.boolean().default(false),
@@ -66,6 +100,7 @@ export const configSchema = z
     test: commandSchema.optional(),
     budget: z
       .object({
+        maxCostUsdPerCall: z.number().finite().nonnegative().optional(),
         maxModelCalls: z.number().int().min(1).max(50).default(4),
         timeoutMs: z.number().int().min(1000).max(3600000).default(600000),
       })
@@ -260,3 +295,11 @@ export const repositoryGraphSchema = z
   })
   .strict();
 export type RepositoryGraph = z.infer<typeof repositoryGraphSchema>;
+export const registeredProviderSchema = z
+  .object({
+    id: z.string().regex(/^prov_[a-f0-9-]+$/),
+    name: z.string().min(1).max(100),
+    config: providerSchema,
+  })
+  .strict();
+export type RegisteredProvider = z.infer<typeof registeredProviderSchema>;

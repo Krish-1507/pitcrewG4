@@ -13,9 +13,10 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@napi-rs/keyring": "2.1.0",
+    "@pitcrew/observability": "workspace:*",
     "@pitcrew/protocol": "workspace:*",
     "@pitcrew/sandbox": "workspace:*",
-    "@pitcrew/observability": "workspace:*",
     "zod": "3.25.76"
   }
 }

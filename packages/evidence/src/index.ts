@@ -6,6 +6,8 @@ import { join, basename } from 'node:path';
 import { z } from 'zod';
 import {
   eventSchema,
+  registeredProviderSchema,
+  configSchema,
   missionSchema,
   PitCrewError,
   repositoryGraphSchema,
@@ -13,13 +15,15 @@ import {
 } from '@pitcrew/protocol';
 import type {
   Mission,
+  RegisteredProvider,
+  RuntimeConfig,
   MissionEvent,
   StoredEvent,
   RepositoryGraph,
   RepoFact,
 } from '@pitcrew/protocol';
 import { isTerminal, reduceMission } from '@pitcrew/mission-runtime';
-import { redact, redactObject } from '@pitcrew/observability';
+import { redact, redactObject, assertNoSecrets } from '@pitcrew/observability';
 
 const migration1 = `
 CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY);
@@ -54,7 +58,7 @@ export class EvidenceStore {
   private constructor(
     public readonly root: string,
     private readonly db: DatabaseSync,
-    private readonly secrets: readonly string[],
+    private readonly secrets: string[],
   ) {}
   static async open(
     root: string,
@@ -67,8 +71,55 @@ export class EvidenceStore {
     );
     db.exec(migration1);
     db.exec(migration2);
-    return new EvidenceStore(root, db, secrets);
+    db.exec(`CREATE TABLE IF NOT EXISTS providers(id TEXT PRIMARY KEY,config_json TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS model_profiles(id TEXT PRIMARY KEY,config_json TEXT NOT NULL);
+      INSERT OR IGNORE INTO schema_migrations VALUES(3);`);
+    return new EvidenceStore(root, db, [...secrets]);
   }
+  addSecret(value: string): void {
+    if (!this.secrets.includes(value)) this.secrets.push(value);
+  }
+  saveProvider(value: RegisteredProvider): void {
+    const provider = registeredProviderSchema.parse(value);
+    assertNoSecrets(JSON.stringify(provider), this.secrets);
+    this.db
+      .prepare('INSERT OR REPLACE INTO providers(id,config_json) VALUES(?,?)')
+      .run(provider.id, JSON.stringify(provider));
+  }
+  providers(): RegisteredProvider[] {
+    return this.db
+      .prepare('SELECT config_json FROM providers ORDER BY id')
+      .all()
+      .map((row) =>
+        registeredProviderSchema.parse(
+          JSON.parse(
+            z.object({ config_json: z.string() }).parse(row).config_json,
+          ),
+        ),
+      );
+  }
+  saveRouting(value: NonNullable<RuntimeConfig['routing']>): void {
+    const routing = configSchema.shape.routing.parse(value);
+    assertNoSecrets(JSON.stringify(routing), this.secrets);
+    this.db
+      .prepare(
+        'INSERT OR REPLACE INTO model_profiles(id,config_json) VALUES(?,?)',
+      )
+      .run('active', JSON.stringify(routing));
+  }
+  routing(): RuntimeConfig['routing'] {
+    const row = this.db
+      .prepare('SELECT config_json FROM model_profiles WHERE id=?')
+      .get('active');
+    return row
+      ? configSchema.shape.routing.parse(
+          JSON.parse(
+            z.object({ config_json: z.string() }).parse(row).config_json,
+          ),
+        )
+      : undefined;
+  }
+
   create(repo: string, request: string): Mission {
     const id = 'mis_' + randomUUID();
     this.db

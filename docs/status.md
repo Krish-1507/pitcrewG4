@@ -9,5 +9,5 @@ OpenPitStop 1.10.0 strict VERIFIED verdict. Baseline remained unchanged.
 See [live evidence record](validation/p0.md) and [quickstart](quickstart.md).
 The deterministic suite has 32 passing tests.
 
-Milestone 2: action-bound approvals, pause/resume/cancel, durable event replay and freshness projection implemented. 38 tests pass. Milestone 3: Tree-sitter indexing, source-linked facts and durable invalidation pass 44 tests and a real verified mission. Milestones 4–15 are not complete.
+Milestone 2: action-bound approvals, pause/resume/cancel, durable event replay and freshness projection implemented. 38 tests pass. Milestone 3: Tree-sitter indexing, source-linked facts and durable invalidation pass 44 tests and a real verified mission. Milestone 4: provider adapters, routing, OS credentials and persisted profiles pass 54 tests and a real Codex failover mission. Milestones 5–15 are not complete.
 This is not a production release or a completed desktop application.

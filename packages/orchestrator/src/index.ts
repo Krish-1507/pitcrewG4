@@ -20,7 +20,11 @@ import {
   checkpoint,
 } from '@pitcrew/candidate-manager';
 import { runSandbox } from '@pitcrew/sandbox';
-import { propose, providerSecrets } from '@pitcrew/model-gateway';
+import {
+  propose,
+  configuredSecrets,
+  selectRoute,
+} from '@pitcrew/model-gateway';
 import { implement } from '@pitcrew/agents';
 import { gate, invokeReferee } from '@pitcrew/openpitstop-adapter';
 import { assertNoSecrets } from '@pitcrew/observability';
@@ -36,7 +40,7 @@ export function startMission(
   store: EvidenceStore,
   options: MissionOptions,
 ): { mission: Mission; done: Promise<Mission>; control: MissionControl } {
-  assertNoSecrets(options.request, providerSecrets(options.config.provider));
+  assertNoSecrets(options.request, configuredSecrets(options.config));
   const mission = store.create(options.repo, options.request);
   const control = new MissionControl((event) => {
     const updated = store.append(mission.id, event);
@@ -160,6 +164,7 @@ async function execute(
     const modifiedPaths = new Set<string>();
     let passed = false;
     let latest = failed;
+    const unavailable = new Set<string>();
     for (let call = 1; call <= config.budget.maxModelCalls; call++) {
       signal.throwIfAborted();
       await control.checkpoint(signal);
@@ -168,22 +173,53 @@ async function execute(
         options.request,
         signal,
       );
+      const contextText = JSON.stringify({
+        repository: currentContext,
+        test: { stdout: latest.stdout, stderr: latest.stderr },
+      });
+      assertNoSecrets(contextText, configuredSecrets(config));
+      const route = selectRoute(config, {
+        role: 'implementer',
+        risk: /auth|permission|tenant|billing|payment|migration|deploy|security/i.test(
+          options.request +
+            '\n' +
+            currentContext.sources.map((s) => s.path).join('\n'),
+        )
+          ? 'high'
+          : 'low',
+        contextChars: contextText.length + options.request.length + 1024,
+        tools: false,
+        priorFailures: unavailable,
+      });
       emit({
         type: 'model',
         calls: call,
-        provider: config.provider.type,
+        provider: route.id + ':' + route.provider.type,
         costUsd: null,
       });
-      const response = await propose(config.provider, {
-        request: options.request,
-        context: JSON.stringify({
-          repository: currentContext,
-          test: { stdout: latest.stdout, stderr: latest.stderr },
-        }),
-        directory: join(store.root, 'bridge', mission.id),
-        signal,
-        timeoutMs: remaining(),
-      });
+      let response;
+      try {
+        response = await propose(route.provider, {
+          request: options.request,
+          context: JSON.stringify({
+            repository: currentContext,
+            test: { stdout: latest.stdout, stderr: latest.stderr },
+          }),
+          directory: join(store.root, 'bridge', mission.id),
+          signal,
+          timeoutMs: remaining(),
+        });
+      } catch (error) {
+        if (
+          error instanceof PitCrewError &&
+          ['PROVIDER_UNAVAILABLE', 'RATE_LIMITED'].includes(error.code) &&
+          config.routing
+        ) {
+          unavailable.add(route.id);
+          if (call < config.budget.maxModelCalls) continue;
+        }
+        throw error;
+      }
       await control.checkpoint(signal);
       const identity = await fingerprint(candidate.root, signal);
       const risky = response.proposal.edits.filter(
@@ -240,7 +276,7 @@ async function execute(
       const paths = await implement(
         candidate.root,
         response.proposal,
-        providerSecrets(config.provider),
+        configuredSecrets(config),
         {
           candidateIdentity: identity,
           actions: approvedActions,

@@ -1,13 +1,21 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { EvidenceStore } from '@pitcrew/evidence';
 import { startMission } from '@pitcrew/orchestrator';
 import { candidateDiff, fingerprint } from '@pitcrew/candidate-manager';
 import { indexRepository } from '@pitcrew/repo-intelligence';
 import { runProcess } from '@pitcrew/sandbox';
-import { providerSecrets } from '@pitcrew/model-gateway';
+import {
+  configuredSecrets,
+  providerSecrets,
+  discoverProvider,
+  storeCredential,
+  deleteCredential,
+} from '@pitcrew/model-gateway';
+import { validateConfig } from '@pitcrew/config';
+import { providerSchema, configSchema } from '@pitcrew/protocol';
 import type { RuntimeConfig } from '@pitcrew/protocol';
 
 const createSchema = z
@@ -22,10 +30,15 @@ export async function startDaemon(
   stateRoot: string,
   config: RuntimeConfig,
 ): Promise<Daemon> {
-  const store = await EvidenceStore.open(
-    stateRoot,
-    providerSecrets(config.provider),
-  );
+  const store = await EvidenceStore.open(stateRoot, configuredSecrets(config));
+  const savedRouting = store.routing();
+  if (savedRouting)
+    config = validateConfig({ ...config, routing: savedRouting });
+  for (const secret of configuredSecrets(config)) store.addSecret(secret);
+  for (const provider of store.providers()) {
+    for (const secret of providerSecrets(provider.config))
+      store.addSecret(secret);
+  }
   store.recoverInterrupted();
   const token = randomBytes(32).toString('hex');
   const active = new Map<
@@ -130,6 +143,112 @@ export async function startDaemon(
       json(res, 200, { status: 'ready', version: '0.1.0-dev' });
       return;
     }
+    if (req.method === 'GET' && path === '/v1/providers') {
+      json(res, 200, {
+        providers: store.providers(),
+        configured: config.routing?.providers ?? [
+          { id: 'primary', provider: config.provider },
+        ],
+      });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/providers') {
+      if (active.size) {
+        json(res, 409, {
+          error: {
+            code: 'MISSION_ACTIVE',
+            message: 'Change providers after active missions finish.',
+          },
+        });
+        return;
+      }
+      const input = z
+        .object({
+          name: z.string().min(1).max(100),
+          config: providerSchema,
+          api_key: z.string().min(1).max(16384).optional(),
+        })
+        .strict()
+        .parse(await body(req));
+      validateConfig({ ...config, provider: input.config });
+      if (
+        input.api_key &&
+        (input.config.type === 'codex' ||
+          input.config.apiKeyEnv ||
+          input.config.secretRef)
+      )
+        throw new Error('conflicting credentials');
+      let secretRef: string | undefined;
+      try {
+        if (input.api_key) {
+          secretRef = storeCredential(input.api_key);
+          store.addSecret(input.api_key);
+        }
+        const provider = {
+          id: 'prov_' + randomUUID(),
+          name: input.name,
+          config: providerSchema.parse({
+            ...input.config,
+            ...(secretRef ? { secretRef } : {}),
+          }),
+        };
+        for (const secret of providerSecrets(provider.config))
+          store.addSecret(secret);
+        store.saveProvider(provider);
+        json(res, 201, { provider });
+      } catch (error) {
+        if (secretRef) deleteCredential(secretRef);
+        throw error;
+      }
+      return;
+    }
+    const providerMatch =
+      /^\/v1\/providers\/(prov_[a-f0-9-]+)\/(discover|health)$/.exec(path);
+    if (
+      providerMatch &&
+      ((req.method === 'POST' && providerMatch[2] === 'discover') ||
+        (req.method === 'GET' && providerMatch[2] === 'health'))
+    ) {
+      const provider = store.providers().find((p) => p.id === providerMatch[1]);
+      if (!provider) throw new Error('unknown provider');
+      json(
+        res,
+        200,
+        await discoverProvider(
+          provider.config,
+          stateRoot,
+          AbortSignal.timeout(15000),
+        ),
+      );
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/model-profiles') {
+      json(res, 200, {
+        profiles: ['economy', 'balanced', 'deep', 'local', 'manual'],
+        active: config.routing ?? null,
+      });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/model-profiles') {
+      if (active.size) {
+        json(res, 409, {
+          error: {
+            code: 'MISSION_ACTIVE',
+            message: 'Change routing after active missions finish.',
+          },
+        });
+        return;
+      }
+      const routing = configSchema.shape.routing.parse(await body(req));
+      if (!routing) throw new Error('missing routing');
+      const updated = validateConfig({ ...config, routing });
+      for (const secret of configuredSecrets(updated)) store.addSecret(secret);
+      store.saveRouting(routing);
+      config = updated;
+      json(res, 200, { active: routing });
+      return;
+    }
+
     if (req.method === 'GET' && path === '/v1/doctor') {
       const signal = AbortSignal.timeout(15000);
       const commands = [
