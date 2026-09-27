@@ -135,6 +135,12 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  packages/memory:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+
   packages/mission-runtime:
     dependencies:
       '@pitcrew/protocol':
@@ -239,6 +245,9 @@ importers:
 
   packages/repo-intelligence:
     dependencies:
+      '@pitcrew/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@pitcrew/observability':
         specifier: workspace:*
         version: link:../observability
@@ -251,6 +260,9 @@ importers:
       '@pitcrew/sandbox':
         specifier: workspace:*
         version: link:../sandbox
+      '@vscode/tree-sitter-wasm':
+        specifier: 0.3.1
+        version: 0.3.1
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -790,6 +802,9 @@ packages:
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
+
+  '@vscode/tree-sitter-wasm@0.3.1':
+    resolution: {integrity: sha512-RJFoomET6FajjG511fmQxeBQfU6M24a0aFZPqpid+ttIxanWf1VGytBG0UmsGjt07qmIPJS8U31D+aecuCucsQ==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -2048,6 +2063,8 @@ snapshots:
       '@vitest/pretty-format': 3.2.4
       loupe: 3.2.1
       tinyrainbow: 2.0.0
+
+  '@vscode/tree-sitter-wasm@0.3.1': {}
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:

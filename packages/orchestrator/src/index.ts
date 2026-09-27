@@ -73,6 +73,19 @@ async function execute(
     await control.checkpoint(signal);
     baseline = await inspectBaseline(options.repo, signal);
     const context = await observe(baseline.root, options.request, signal);
+    emit({
+      type: 'evidence',
+      label: 'repository context',
+      artifact: await store.artifact(
+        JSON.stringify({
+          files: context.files,
+          facts: context.facts,
+          scripts: context.scripts,
+        }),
+      ),
+      digest: baseline.digest,
+      exitCode: null,
+    });
     const test: Command | undefined = config.test ?? context.test;
     if (!test)
       throw new PitCrewError(

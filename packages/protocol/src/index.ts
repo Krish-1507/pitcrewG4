@@ -204,3 +204,59 @@ export class PitCrewError extends Error {
     this.name = 'PitCrewError';
   }
 }
+
+export const sourceEvidenceSchema = z
+  .object({
+    path: z.string(),
+    line: z.number().int().positive(),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+export type SourceEvidence = z.infer<typeof sourceEvidenceSchema>;
+export const repoFactSchema = z
+  .object({
+    id: z.string(),
+    subject: z.string(),
+    predicate: z.string(),
+    value: z.string(),
+    kind: z.enum(['observed', 'inferred', 'user_declared']),
+    evidence: sourceEvidenceSchema,
+    dependencies: z.record(z.string()),
+    stale: z.boolean(),
+  })
+  .strict();
+export type RepoFact = z.infer<typeof repoFactSchema>;
+export const repositoryGraphSchema = z
+  .object({
+    root: z.string(),
+    head: z.string(),
+    dirty: z.boolean(),
+    observedAt: z.number(),
+    boundaryDigest: z.string(),
+    files: z.array(
+      z
+        .object({
+          path: z.string(),
+          digest: z.string(),
+          language: z.string(),
+          parser: z.string(),
+          parseErrors: z.boolean(),
+        })
+        .strict(),
+    ),
+    facts: z.array(repoFactSchema),
+    relationships: z.array(
+      z
+        .object({
+          from: z.string(),
+          to: z.string(),
+          kind: z.enum(['observed', 'inferred', 'user_declared']),
+          relation: z.string(),
+          evidence: sourceEvidenceSchema,
+        })
+        .strict(),
+    ),
+    limitations: z.array(z.string()),
+  })
+  .strict();
+export type RepositoryGraph = z.infer<typeof repositoryGraphSchema>;

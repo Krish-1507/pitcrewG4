@@ -5,8 +5,13 @@ export function redact(
   knownSecrets: readonly string[] = [],
 ): string {
   let result = text;
-  for (const secret of knownSecrets)
-    if (secret.length) result = result.split(secret).join('[REDACTED]');
+  for (const secret of knownSecrets) {
+    if (!secret.length) continue;
+    result = result.split(secret).join('[REDACTED]');
+    result = result
+      .split(JSON.stringify(secret).slice(1, -1))
+      .join('[REDACTED]');
+  }
   return result
     .replace(
       /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g,
@@ -35,4 +40,21 @@ export function assertNoSecrets(
       'POLICY_DENIED',
       'Credential-like content was blocked before context or storage.',
     );
+}
+
+export function redactObject(
+  value: unknown,
+  secrets: readonly string[] = [],
+): unknown {
+  if (typeof value === 'string') return redact(value, secrets);
+  if (Array.isArray(value))
+    return value.map((item) => redactObject(item, secrets));
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        redactObject(item, secrets),
+      ]),
+    );
+  return value;
 }

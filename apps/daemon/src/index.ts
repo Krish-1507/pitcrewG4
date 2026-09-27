@@ -4,12 +4,8 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { EvidenceStore } from '@pitcrew/evidence';
 import { startMission } from '@pitcrew/orchestrator';
-import {
-  inspectBaseline,
-  candidateDiff,
-  fingerprint,
-} from '@pitcrew/candidate-manager';
-import { observe } from '@pitcrew/repo-intelligence';
+import { candidateDiff, fingerprint } from '@pitcrew/candidate-manager';
+import { indexRepository } from '@pitcrew/repo-intelligence';
 import { runProcess } from '@pitcrew/sandbox';
 import { providerSecrets } from '@pitcrew/model-gateway';
 import type { RuntimeConfig } from '@pitcrew/protocol';
@@ -184,14 +180,42 @@ export async function startDaemon(
         .object({ path: z.string().min(1) })
         .strict()
         .parse(await body(req));
-      const baseline = await inspectBaseline(
+      const graph = await indexRepository(
         input.path,
         AbortSignal.timeout(30000),
       );
+      const artifact = await store.saveGraph(graph);
       json(res, 200, {
-        project: baseline,
-        context: await observe(baseline.root, '', AbortSignal.timeout(30000)),
+        project: {
+          id: store
+            .projects()
+            .find((project) => project.root_path === graph.root)!.id,
+          root: graph.root,
+          head: graph.head,
+          dirty: graph.dirty,
+        },
+        graph,
+        artifact,
       });
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/projects') {
+      json(res, 200, { projects: store.projects() });
+      return;
+    }
+    const projectMatch =
+      /^\/v1\/projects\/(prj_[a-f0-9-]+)(?:\/(observe|story|facts))?$/.exec(
+        path,
+      );
+    if (
+      projectMatch &&
+      (req.method === 'GET' ||
+        (req.method === 'POST' && projectMatch[2] === 'observe'))
+    ) {
+      const root = store.projectRoot(projectMatch[1]!);
+      const graph = await indexRepository(root, AbortSignal.timeout(30000));
+      const artifact = await store.saveGraph(graph);
+      json(res, 200, { graph, artifact, facts: store.facts(root) });
       return;
     }
     if (req.method === 'GET' && path === '/v1/missions') {
