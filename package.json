@@ -9,7 +9,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "node --experimental-sqlite node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/check-boundaries.mjs",
     "build": "turbo run build",

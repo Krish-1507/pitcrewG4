@@ -4,3 +4,6 @@ AGENTS.md
 dist/
 node_modules/
 .pitcrew/
+.pnpm-store/
+.pitstop/
+.turbo/

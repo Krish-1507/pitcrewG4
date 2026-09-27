@@ -36,8 +36,224 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.18.10)(supports-color@7.2.0)
 
+  apps/cli:
+    dependencies:
+      '@pitcrew/daemon':
+        specifier: workspace:*
+        version: link:../daemon
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  apps/daemon:
+    dependencies:
+      '@pitcrew/candidate-manager':
+        specifier: workspace:*
+        version: link:../../packages/candidate-manager
+      '@pitcrew/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@pitcrew/evidence':
+        specifier: workspace:*
+        version: link:../../packages/evidence
+      '@pitcrew/model-gateway':
+        specifier: workspace:*
+        version: link:../../packages/model-gateway
+      '@pitcrew/orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/orchestrator
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@pitcrew/repo-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/repo-intelligence
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/agents:
+    dependencies:
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pitcrew/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/candidate-manager:
+    dependencies:
+      '@pitcrew/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/config:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/evidence:
+    dependencies:
+      '@pitcrew/mission-runtime':
+        specifier: workspace:*
+        version: link:../mission-runtime
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/mission-runtime:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/model-gateway:
+    dependencies:
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/observability:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/openpitstop-adapter:
+    dependencies:
+      '@pitcrew/candidate-manager':
+        specifier: workspace:*
+        version: link:../candidate-manager
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/orchestrator:
+    dependencies:
+      '@pitcrew/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@pitcrew/candidate-manager':
+        specifier: workspace:*
+        version: link:../candidate-manager
+      '@pitcrew/evidence':
+        specifier: workspace:*
+        version: link:../evidence
+      '@pitcrew/model-gateway':
+        specifier: workspace:*
+        version: link:../model-gateway
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pitcrew/openpitstop-adapter':
+        specifier: workspace:*
+        version: link:../openpitstop-adapter
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/repo-intelligence':
+        specifier: workspace:*
+        version: link:../repo-intelligence
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/policy-engine:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
   packages/protocol:
     dependencies:
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/repo-intelligence:
+    dependencies:
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pitcrew/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@pitcrew/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/sandbox:
+    dependencies:
+      '@pitcrew/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       zod:
         specifier: 3.25.76
         version: 3.25.76

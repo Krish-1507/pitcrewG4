@@ -1,0 +1,20 @@
+{
+  "name": "@pitcrew/daemon",
+  "version": "0.1.0-dev",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pitcrew/protocol": "workspace:*",
+    "@pitcrew/config": "workspace:*",
+    "@pitcrew/evidence": "workspace:*",
+    "@pitcrew/orchestrator": "workspace:*",
+    "@pitcrew/repo-intelligence": "workspace:*",
+    "@pitcrew/candidate-manager": "workspace:*",
+    "@pitcrew/sandbox": "workspace:*",
+    "@pitcrew/model-gateway": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

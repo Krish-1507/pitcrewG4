@@ -10,3 +10,6 @@ Turborepo schedules workspace builds. pnpm manages the lockfile and workspaces.
 
 No agent framework is used. Platform APIs provide HTTP, Git process launch,
 hashing, cancellation and filesystem operations.
+
+OpenPitStop 1.10.0 (MIT) is development-only and invoked through its public CLI.
+Node SQLite avoids an additional runtime database dependency.

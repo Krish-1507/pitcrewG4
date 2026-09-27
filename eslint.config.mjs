@@ -8,13 +8,21 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.pitcrew/**',
       '**/.turbo/**',
+      '**/.pnpm-store/**',
+      '**/.pitstop/**',
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ['**/*.mjs'],
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        AbortSignal: 'readonly',
+      },
+    },
   },
   {
     rules: {

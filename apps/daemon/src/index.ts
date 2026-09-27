@@ -1,0 +1,274 @@
+import { createServer } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { z } from 'zod';
+import { EvidenceStore } from '@pitcrew/evidence';
+import { startMission } from '@pitcrew/orchestrator';
+import {
+  inspectBaseline,
+  candidateDiff,
+  fingerprint,
+} from '@pitcrew/candidate-manager';
+import { observe } from '@pitcrew/repo-intelligence';
+import { runProcess } from '@pitcrew/sandbox';
+import { providerSecrets } from '@pitcrew/model-gateway';
+import type { RuntimeConfig } from '@pitcrew/protocol';
+
+const createSchema = z
+  .object({ repo: z.string().min(1), request: z.string().min(1).max(8000) })
+  .strict();
+export interface Daemon {
+  url: string;
+  token: string;
+  close: () => Promise<void>;
+}
+export async function startDaemon(
+  stateRoot: string,
+  config: RuntimeConfig,
+): Promise<Daemon> {
+  const store = await EvidenceStore.open(
+    stateRoot,
+    providerSecrets(config.provider),
+  );
+  store.recoverInterrupted();
+  const token = randomBytes(32).toString('hex');
+  const active = new Map<
+    string,
+    { abort: AbortController; done: Promise<unknown> }
+  >();
+  const projects = new Set<string>();
+  async function body(req: IncomingMessage): Promise<unknown> {
+    let bytes = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      const data = Buffer.isBuffer(chunk)
+        ? chunk
+        : Buffer.from(chunk as Uint8Array);
+      bytes += data.length;
+      if (bytes > 65536) throw new Error('payload limit');
+      chunks.push(data);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  }
+  function json(res: ServerResponse, status: number, value: unknown): void {
+    res.writeHead(status, {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    });
+    res.end(JSON.stringify(value));
+  }
+  const server = createServer((req, res) => {
+    void route(req, res).catch(() => {
+      if (!res.headersSent)
+        json(res, 400, {
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Invalid request or unavailable resource.',
+          },
+        });
+      else res.end();
+    });
+  });
+  server.requestTimeout = 30000;
+  server.headersTimeout = 10000;
+  async function route(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
+    const auth = req.headers.authorization ?? '';
+    const expected = 'Bearer ' + token;
+    if (
+      req.headers.origin ||
+      !['127.0.0.1', '::ffff:127.0.0.1'].includes(
+        req.socket.remoteAddress ?? '',
+      ) ||
+      Buffer.byteLength(auth) !== Buffer.byteLength(expected) ||
+      !timingSafeEqual(Buffer.from(auth), Buffer.from(expected))
+    ) {
+      json(res, 401, {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Daemon authorization required.',
+        },
+      });
+      return;
+    }
+    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    if (req.method === 'GET' && path === '/v1/health') {
+      json(res, 200, { status: 'ready', version: '0.1.0-dev' });
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/doctor') {
+      const signal = AbortSignal.timeout(15000);
+      const commands = [
+        { name: 'Git', executable: 'git', args: ['--version'] },
+        {
+          name: 'Docker',
+          executable: config.execution.dockerExecutable,
+          args: ['info', '--format', '{{.ServerVersion}}'],
+        },
+        {
+          name: 'OpenPitStop',
+          executable: config.referee.executable,
+          args: [...config.referee.args, '--version'],
+        },
+      ];
+      if (config.provider.type === 'codex')
+        commands.push({
+          name: 'Codex',
+          executable: config.provider.executable,
+          args: ['--version'],
+        });
+      const capabilities = await Promise.all(
+        commands.map(async (c) => {
+          try {
+            const r = await runProcess(c, {
+              cwd: stateRoot,
+              signal,
+              timeoutMs: 10000,
+            });
+            return {
+              name: c.name,
+              available: r.exitCode === 0,
+              version: r.exitCode === 0 ? r.stdout.trim() : null,
+            };
+          } catch {
+            return { name: c.name, available: false, version: null };
+          }
+        }),
+      );
+      json(res, 200, {
+        capabilities,
+        reducedIsolation: config.execution.allowReducedIsolation,
+      });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/projects/open') {
+      const input = z
+        .object({ path: z.string().min(1) })
+        .strict()
+        .parse(await body(req));
+      const baseline = await inspectBaseline(
+        input.path,
+        AbortSignal.timeout(30000),
+      );
+      json(res, 200, {
+        project: baseline,
+        context: await observe(baseline.root, '', AbortSignal.timeout(30000)),
+      });
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/missions') {
+      json(res, 200, { missions: store.list() });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/missions') {
+      const input = createSchema.parse(await body(req));
+      const normalized = (await import('node:fs/promises')).realpath;
+      const root = await normalized(input.repo);
+      const key = process.platform === 'win32' ? root.toLowerCase() : root;
+      if (projects.has(key)) {
+        json(res, 409, {
+          error: {
+            code: 'PROJECT_BUSY',
+            message: 'One mission per repository is allowed.',
+          },
+        });
+        return;
+      }
+      projects.add(key);
+      const abort = new AbortController();
+      try {
+        const running = startMission(store, {
+          repo: root,
+          request: input.request,
+          config,
+          signal: abort.signal,
+        });
+        const done = running.done.finally(() => {
+          active.delete(running.mission.id);
+          projects.delete(key);
+        });
+        active.set(running.mission.id, { abort, done });
+        json(res, 202, { mission_id: running.mission.id });
+      } catch (error) {
+        projects.delete(key);
+        throw error;
+      }
+      return;
+    }
+    const missionMatch =
+      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|diff|events))?$/.exec(
+        path,
+      );
+    if (missionMatch) {
+      const id = missionMatch[1]!;
+      const action = missionMatch[2];
+      if (req.method === 'POST' && action === 'cancel') {
+        active.get(id)?.abort.abort();
+        json(res, 202, { requested: true });
+        return;
+      }
+      if (req.method === 'GET') {
+        const mission = store.get(id);
+        if (action === 'events') {
+          json(res, 200, { events: mission.events });
+          return;
+        }
+        if (action === 'diff') {
+          if (!mission.candidate) {
+            json(res, 404, {
+              error: {
+                code: 'NO_CANDIDATE',
+                message: 'No candidate was created.',
+              },
+            });
+            return;
+          }
+          const signal = AbortSignal.timeout(30000);
+          const digest = await fingerprint(mission.candidate.root, signal);
+          const final = mission.events
+            .map((e) => e.event)
+            .findLast((e) => e.type === 'referee');
+          json(res, 200, {
+            diff: await candidateDiff(mission.candidate, signal),
+            digest,
+            fresh: final?.type === 'referee' && final.digest === digest,
+          });
+          return;
+        }
+        json(res, 200, mission);
+        return;
+      }
+    }
+    const artifact = /^\/v1\/artifacts\/([a-f0-9]{64})$/.exec(path);
+    if (req.method === 'GET' && artifact) {
+      json(res, 200, { content: await store.readArtifact(artifact[1]!) });
+      return;
+    }
+    json(res, 404, {
+      error: { code: 'NOT_FOUND', message: 'Route not found.' },
+    });
+  }
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string')
+    throw new Error('No loopback address.');
+  return {
+    url: 'http://127.0.0.1:' + address.port,
+    token,
+    close: async () => {
+      for (const item of active.values()) item.abort.abort();
+      await Promise.allSettled([...active.values()].map((item) => item.done));
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+      store.close();
+    },
+  };
+}

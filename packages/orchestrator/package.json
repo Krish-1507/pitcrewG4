@@ -1,0 +1,27 @@
+{
+  "name": "@pitcrew/orchestrator",
+  "version": "0.1.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pitcrew/protocol": "workspace:*",
+    "@pitcrew/sandbox": "workspace:*",
+    "@pitcrew/repo-intelligence": "workspace:*",
+    "@pitcrew/candidate-manager": "workspace:*",
+    "@pitcrew/model-gateway": "workspace:*",
+    "@pitcrew/agents": "workspace:*",
+    "@pitcrew/evidence": "workspace:*",
+    "@pitcrew/observability": "workspace:*",
+    "@pitcrew/openpitstop-adapter": "workspace:*",
+    "zod": "3.25.76"
+  }
+}
