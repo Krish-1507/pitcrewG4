@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+docs/spec/
+AGENTS.md
+dist/
+node_modules/
+.pitcrew/
