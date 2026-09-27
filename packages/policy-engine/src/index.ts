@@ -68,3 +68,39 @@ export function actionHash(
     .update(JSON.stringify({ candidate, path, before, after }))
     .digest('hex');
 }
+
+export function evaluateEdit(
+  path: string,
+  before: string,
+  after: string,
+): PolicyDecision {
+  const pathDecision = evaluatePath(path, 'write');
+  if (pathDecision.decision !== 'allow') return pathDecision;
+  if (
+    /auth|permission|role|tenant|admin|session|password|secret|token|migration|transaction|billing|payment|deploy|process\.env/i.test(
+      before + '\n' + after,
+    )
+  )
+    return {
+      decision: 'ask',
+      reason: 'The edited source touches a security or operational boundary.',
+    };
+  return { decision: 'allow' };
+}
+export function evaluateOperation(
+  type: 'read' | 'test' | 'push' | 'merge' | 'deploy' | 'external-test',
+  target: string,
+): PolicyDecision {
+  if (type === 'deploy')
+    return {
+      decision: 'deny',
+      reason: 'Production deployment is outside autonomous scope.',
+    };
+  if (type === 'push' || type === 'merge' || type === 'external-test')
+    return {
+      decision: 'ask',
+      reason: 'Explicit user approval and target scope are required.',
+    };
+  if (type === 'read') return evaluatePath(target, 'read');
+  return { decision: 'allow' };
+}

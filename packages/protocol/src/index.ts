@@ -100,6 +100,31 @@ export type Candidate = z.infer<typeof candidateSchema>;
 export const eventSchema = z.discriminatedUnion('type', [
   z
     .object({
+      type: z.literal('control'),
+      action: z.enum(['pause_requested', 'paused', 'resumed']),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('approval.requested'),
+      id: z.string(),
+      hash: z.string(),
+      candidateId: z.string(),
+      artifact: z.string(),
+      reason: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('approval.resolved'),
+      id: z.string(),
+      hash: z.string(),
+      approved: z.boolean(),
+    })
+    .strict(),
+
+  z
+    .object({
       type: z.literal('phase'),
       state: phaseSchema,
       message: z.string(),
@@ -151,6 +176,8 @@ export const missionSchema = z.object({
   message: z.string(),
   candidate: candidateSchema.optional(),
   events: z.array(storedEventSchema),
+  control: z.enum(['running', 'pause_requested', 'paused']).optional(),
+  evidenceState: z.enum(['CURRENT', 'STALE', 'UNAVAILABLE']).optional(),
 });
 export type Mission = z.infer<typeof missionSchema>;
 export const errorCodeSchema = z.enum([

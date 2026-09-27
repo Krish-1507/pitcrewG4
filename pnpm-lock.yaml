@@ -194,6 +194,9 @@ importers:
       '@pitcrew/evidence':
         specifier: workspace:*
         version: link:../evidence
+      '@pitcrew/mission-runtime':
+        specifier: workspace:*
+        version: link:../mission-runtime
       '@pitcrew/model-gateway':
         specifier: workspace:*
         version: link:../model-gateway
@@ -203,6 +206,9 @@ importers:
       '@pitcrew/openpitstop-adapter':
         specifier: workspace:*
         version: link:../openpitstop-adapter
+      '@pitcrew/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
       '@pitcrew/protocol':
         specifier: workspace:*
         version: link:../protocol

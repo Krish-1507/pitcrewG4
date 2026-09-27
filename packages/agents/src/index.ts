@@ -1,20 +1,40 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { assertWritable } from '@pitcrew/policy-engine';
+import { evaluateEdit, actionHash } from '@pitcrew/policy-engine';
 import { resolveInside } from '@pitcrew/sandbox';
 import { assertNoSecrets } from '@pitcrew/observability';
 import { PitCrewError } from '@pitcrew/protocol';
 import type { Proposal } from '@pitcrew/protocol';
 
+export interface EditGrant {
+  candidateIdentity: string;
+  actions: readonly string[];
+  paths: readonly string[];
+}
 export async function implement(
   root: string,
   proposal: Proposal,
   knownSecrets: readonly string[] = [],
+  grant?: EditGrant,
 ): Promise<string[]> {
   const prepared: { path: string; target: string; content: string }[] = [];
   const seen = new Set<string>();
   for (const edit of proposal.edits) {
-    assertWritable(edit.path);
+    const decision = evaluateEdit(edit.path, edit.before, edit.after);
+    if (decision.decision === 'deny')
+      throw new PitCrewError('POLICY_DENIED', decision.reason);
+    if (
+      decision.decision === 'ask' &&
+      !grant?.actions.includes(
+        actionHash(grant.candidateIdentity, edit.path, edit.before, edit.after),
+      )
+    )
+      throw new PitCrewError('APPROVAL_REQUIRED', decision.reason);
+    if (grant && !grant.paths.includes(edit.path))
+      throw new PitCrewError(
+        'POLICY_DENIED',
+        'Edit is outside the approved Context Pack.',
+      );
     assertNoSecrets(edit.after, knownSecrets);
     if (seen.has(edit.path.toLowerCase()))
       throw new PitCrewError('POLICY_DENIED', 'Duplicate edit target.');

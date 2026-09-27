@@ -34,9 +34,44 @@ export async function startDaemon(
   const token = randomBytes(32).toString('hex');
   const active = new Map<
     string,
-    { abort: AbortController; done: Promise<unknown> }
+    {
+      abort: AbortController;
+      done: Promise<unknown>;
+      control: ReturnType<typeof startMission>['control'];
+    }
   >();
   const projects = new Set<string>();
+  async function currentMission(id: string) {
+    const mission = store.get(id);
+    if (mission.state !== 'VERIFIED' || !mission.candidate) return mission;
+    const final = mission.events
+      .map((item) => item.event)
+      .findLast((event) => event.type === 'referee');
+    try {
+      const digest = await fingerprint(
+        mission.candidate.root,
+        AbortSignal.timeout(30000),
+      );
+      if (final?.type === 'referee' && final.digest === digest)
+        return { ...mission, evidenceState: 'CURRENT' as const };
+    } catch {
+      return {
+        ...mission,
+        state: 'NOT_PROVEN' as const,
+        evidenceState: 'UNAVAILABLE' as const,
+        message:
+          'Historical verdict retained; current candidate evidence is unavailable.',
+      };
+    }
+    return {
+      ...mission,
+      state: 'NOT_PROVEN' as const,
+      evidenceState: 'STALE' as const,
+      message:
+        'Candidate changed since independent verification. Historical PASS is stale.',
+    };
+  }
+
   async function body(req: IncomingMessage): Promise<unknown> {
     let bytes = 0;
     const chunks: Buffer[] = [];
@@ -160,7 +195,11 @@ export async function startDaemon(
       return;
     }
     if (req.method === 'GET' && path === '/v1/missions') {
-      json(res, 200, { missions: store.list() });
+      json(res, 200, {
+        missions: await Promise.all(
+          store.list().map((m) => currentMission(m.id)),
+        ),
+      });
       return;
     }
     if (req.method === 'POST' && path === '/v1/missions') {
@@ -190,7 +229,11 @@ export async function startDaemon(
           active.delete(running.mission.id);
           projects.delete(key);
         });
-        active.set(running.mission.id, { abort, done });
+        active.set(running.mission.id, {
+          abort,
+          done,
+          control: running.control,
+        });
         json(res, 202, { mission_id: running.mission.id });
       } catch (error) {
         projects.delete(key);
@@ -198,8 +241,44 @@ export async function startDaemon(
       }
       return;
     }
+    const approvalMatch = /^\/v1\/approvals\/(apr_[a-f0-9-]+)$/.exec(path);
+    if (req.method === 'POST' && approvalMatch) {
+      const input = z
+        .object({
+          decision: z.enum(['approve', 'reject']),
+          action_hash: z.string().regex(/^[a-f0-9]{64}$/),
+        })
+        .strict()
+        .parse(await body(req));
+      for (const [missionId, running] of active) {
+        if (
+          store
+            .get(missionId)
+            .events.some(
+              (item) =>
+                item.event.type === 'approval.requested' &&
+                item.event.id === approvalMatch[1],
+            )
+        ) {
+          running.control.resolveApproval(
+            approvalMatch[1]!,
+            input.action_hash,
+            input.decision === 'approve',
+          );
+          json(res, 200, { resolved: true });
+          return;
+        }
+      }
+      json(res, 409, {
+        error: {
+          code: 'STALE_APPROVAL',
+          message: 'No matching active approval.',
+        },
+      });
+      return;
+    }
     const missionMatch =
-      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|diff|events))?$/.exec(
+      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|pause|resume|diff|events))?$/.exec(
         path,
       );
     if (missionMatch) {
@@ -210,8 +289,24 @@ export async function startDaemon(
         json(res, 202, { requested: true });
         return;
       }
+      if (
+        req.method === 'POST' &&
+        (action === 'pause' || action === 'resume')
+      ) {
+        const running = active.get(id);
+        if (!running) {
+          json(res, 409, {
+            error: { code: 'NOT_ACTIVE', message: 'Mission is not active.' },
+          });
+          return;
+        }
+        if (action === 'pause') running.control.pause();
+        else running.control.resume();
+        json(res, 202, { requested: true });
+        return;
+      }
       if (req.method === 'GET') {
-        const mission = store.get(id);
+        const mission = await currentMission(id);
         if (action === 'events') {
           json(res, 200, { events: mission.events });
           return;

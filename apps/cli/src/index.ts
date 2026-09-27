@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fork } from 'node:child_process';
+import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -84,6 +85,17 @@ if (options.values.help || !options.positionals.length) {
       );
     return result;
   }
+  const terminal =
+    process.stdin.isTTY && !options.values.json
+      ? createInterface({ input: process.stdin, output: process.stdout })
+      : undefined;
+  terminal?.on('line', (line) => {
+    const command = line.trim();
+    if (missionId && ['/pause', '/resume', '/cancel'].includes(command))
+      void api('missions/' + missionId + '/' + command.slice(1), {}).catch(() =>
+        console.error('Control request failed.'),
+      );
+  });
   const cancel = (): void => {
     if (missionId) void api('missions/' + missionId + '/cancel', {});
     else child.disconnect();
@@ -135,6 +147,31 @@ if (options.values.help || !options.positionals.length) {
         const mission = missionSchema.parse(await api('missions/' + missionId));
         for (const item of mission.events.filter((e) => e.sequence > seen)) {
           seen = item.sequence;
+          if (item.event.type === 'approval.requested') {
+            const approval = item.event;
+            console.log(
+              'Approval required: ' +
+                approval.reason +
+                '\nAction hash: ' +
+                approval.hash,
+            );
+            console.log(
+              z
+                .object({ content: z.string() })
+                .parse(await api('artifacts/' + approval.artifact)).content,
+            );
+            const answer = terminal
+              ? await terminal.question(
+                  'Approve this exact candidate-only change? Type approve: ',
+                )
+              : 'reject';
+            await api('approvals/' + approval.id, {
+              decision: answer.trim() === 'approve' ? 'approve' : 'reject',
+              action_hash: approval.hash,
+            });
+          }
+          if (item.event.type === 'control' && !options.values.json)
+            console.log(' CONTROL          ' + item.event.action);
           if (options.values.json) console.log(JSON.stringify(item));
           else if (item.event.type === 'phase')
             console.log(
@@ -187,6 +224,7 @@ if (options.values.help || !options.positionals.length) {
       }
     }
   } finally {
+    terminal?.close();
     process.removeListener('SIGINT', cancel);
     if (child.connected) child.disconnect();
   }

@@ -69,3 +69,14 @@ repository under `.pitcrew/acceptance/`, invokes the real Codex CLI and real
 OpenPitStop 1.10.0, and asserts the baseline is unchanged. This spends a real
 model call and requires the authenticated CLI. It is deliberately separate from
 the deterministic unit/integration test suite.
+
+## Controls
+
+Interactive missions accept `/pause`, `/resume` and `/cancel` as input lines.
+Pause takes effect at the next safe operation boundary. A protected edit shows
+its exact proposal and action hash and requires typing `approve`. Noninteractive
+clients reject such edits. Credentials and out-of-scope paths cannot be approved.
+
+The API accepts `/v1/missions/{id}/pause`, `/resume`, `/cancel`, and
+`POST /v1/approvals/{id}` with `{ "decision": "approve", "action_hash": "..." }`.
+Historical verification is projected as stale if current candidate bytes differ.

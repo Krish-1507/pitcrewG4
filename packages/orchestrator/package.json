@@ -22,6 +22,8 @@
     "@pitcrew/evidence": "workspace:*",
     "@pitcrew/observability": "workspace:*",
     "@pitcrew/openpitstop-adapter": "workspace:*",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "@pitcrew/mission-runtime": "workspace:*",
+    "@pitcrew/policy-engine": "workspace:*"
   }
 }

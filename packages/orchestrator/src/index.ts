@@ -1,4 +1,7 @@
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { MissionControl } from '@pitcrew/mission-runtime';
+import { evaluateEdit, actionHash } from '@pitcrew/policy-engine';
 import { PitCrewError } from '@pitcrew/protocol';
 import type {
   RuntimeConfig,
@@ -32,16 +35,21 @@ export interface MissionOptions {
 export function startMission(
   store: EvidenceStore,
   options: MissionOptions,
-): { mission: Mission; done: Promise<Mission> } {
+): { mission: Mission; done: Promise<Mission>; control: MissionControl } {
   assertNoSecrets(options.request, providerSecrets(options.config.provider));
   const mission = store.create(options.repo, options.request);
-  const done = execute(store, mission, options);
-  return { mission, done };
+  const control = new MissionControl((event) => {
+    const updated = store.append(mission.id, event);
+    options.onEvent?.(updated);
+  });
+  const done = execute(store, mission, options, control);
+  return { mission, done, control };
 }
 async function execute(
   store: EvidenceStore,
   mission: Mission,
   options: MissionOptions,
+  control: MissionControl,
 ): Promise<Mission> {
   const { config } = options;
   const signal = AbortSignal.any([
@@ -62,6 +70,7 @@ async function execute(
       state: 'UNDERSTANDING',
       message: 'Inspecting real Git state and repository mechanics.',
     });
+    await control.checkpoint(signal);
     baseline = await inspectBaseline(options.repo, signal);
     const context = await observe(baseline.root, options.request, signal);
     const test: Command | undefined = config.test ?? context.test;
@@ -135,15 +144,23 @@ async function execute(
       message:
         'Requesting bounded Implementer edits from the configured real provider.',
     });
+    const modifiedPaths = new Set<string>();
     let passed = false;
     let latest = failed;
     for (let call = 1; call <= config.budget.maxModelCalls; call++) {
       signal.throwIfAborted();
+      await control.checkpoint(signal);
       const currentContext = await observe(
         candidate.root,
         options.request,
         signal,
       );
+      emit({
+        type: 'model',
+        calls: call,
+        provider: config.provider.type,
+        costUsd: null,
+      });
       const response = await propose(config.provider, {
         request: options.request,
         context: JSON.stringify({
@@ -154,17 +171,70 @@ async function execute(
         signal,
         timeoutMs: remaining(),
       });
-      emit({
-        type: 'model',
-        calls: call,
-        provider: response.provider,
-        costUsd: response.costUsd,
-      });
+      await control.checkpoint(signal);
+      const identity = await fingerprint(candidate.root, signal);
+      const risky = response.proposal.edits.filter(
+        (edit) =>
+          evaluateEdit(edit.path, edit.before, edit.after).decision === 'ask',
+      );
+      const approvedActions: string[] = [];
+      if (risky.length) {
+        const hash = createHash('sha256')
+          .update(
+            JSON.stringify({
+              candidateId: candidate.id,
+              identity,
+              proposal: response.proposal,
+            }),
+          )
+          .digest('hex');
+        const artifact = await store.artifact(
+          JSON.stringify(response.proposal),
+        );
+        emit({
+          type: 'phase',
+          state: 'AWAITING_APPROVAL',
+          message:
+            'Inspect the exact proposed change before granting candidate-only approval.',
+        });
+        const approved = await control.approval(
+          hash,
+          candidate.id,
+          artifact,
+          'Protected edit: ' + risky.map((e) => e.path).join(', '),
+          signal,
+        );
+        if (!approved)
+          throw new PitCrewError(
+            'POLICY_DENIED',
+            'User rejected the proposed action.',
+          );
+        await control.checkpoint(signal);
+        if ((await fingerprint(candidate.root, signal)) !== identity)
+          throw new PitCrewError(
+            'STALE_EVIDENCE',
+            'Candidate changed while approval was pending.',
+          );
+        approvedActions.push(
+          ...risky.map((e) => actionHash(identity, e.path, e.before, e.after)),
+        );
+        emit({
+          type: 'phase',
+          state: 'IMPLEMENTING',
+          message: 'Applying the exact approved candidate-only proposal.',
+        });
+      }
       const paths = await implement(
         candidate.root,
         response.proposal,
         providerSecrets(config.provider),
+        {
+          candidateIdentity: identity,
+          actions: approvedActions,
+          paths: currentContext.sources.map((source) => source.path),
+        },
       );
+      for (const path of paths) modifiedPaths.add(path);
       emit({
         type: 'phase',
         state: 'TESTING',
@@ -190,7 +260,7 @@ async function execute(
         exitCode: latest.exitCode,
       });
       if (latest.exitCode === 0) {
-        await checkpoint(candidate, paths, signal);
+        await checkpoint(candidate, [...modifiedPaths], signal);
         passed = true;
         break;
       }
@@ -247,6 +317,7 @@ async function execute(
         '--json',
       ]);
     for (const args of stages) {
+      await control.checkpoint(signal);
       const result = await invokeReferee(
         config.referee,
         candidate,
@@ -267,6 +338,7 @@ async function execute(
       state: 'FINAL_GATE',
       message: 'Requesting OpenPitStop strict final verdict.',
     });
+    await control.checkpoint(signal);
     const result = await gate(config.referee, candidate, signal, remaining());
     if ((await fingerprint(candidate.root, signal)) !== result.digest)
       throw new PitCrewError('STALE_EVIDENCE', 'Candidate changed after gate.');
@@ -283,14 +355,13 @@ async function execute(
       message: result.message,
     });
   } catch (error) {
-    const code =
-      error instanceof PitCrewError
+    const code = signal.aborted
+      ? options.signal.aborted
+        ? 'CANCELLED'
+        : 'TIMEOUT'
+      : error instanceof PitCrewError
         ? error.code
-        : signal.aborted
-          ? options.signal.aborted
-            ? 'CANCELLED'
-            : 'TIMEOUT'
-          : 'INTERNAL';
+        : 'INTERNAL';
     const message =
       error instanceof PitCrewError
         ? error.message

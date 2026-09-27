@@ -20,6 +20,11 @@ export function reduceMission(mission: Mission, event: MissionEvent): Mission {
       'INTERNAL',
       'Terminal missions cannot receive mutations.',
     );
+  if (event.type === 'control')
+    return {
+      ...mission,
+      control: event.action === 'resumed' ? 'running' : event.action,
+    };
   if (event.type === 'phase') {
     if (
       !['BLOCKED', 'NOT_PROVEN', 'CANCELLED'].includes(event.state) &&
@@ -40,3 +45,5 @@ export function reduceMission(mission: Mission, event: MissionEvent): Mission {
   }
   return mission;
 }
+
+export { MissionControl } from './mission-control.js';
