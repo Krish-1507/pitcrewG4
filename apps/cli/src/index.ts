@@ -184,6 +184,15 @@ if (options.values.help || !options.positionals.length) {
                 ' → ' +
                 item.event.artifact.slice(0, 12),
             );
+          else if (item.event.type === 'delegation')
+            console.log(
+              ' CREW             ' +
+                item.event.role +
+                ' · ' +
+                item.event.status +
+                ' · ' +
+                item.event.mode,
+            );
           else if (item.event.type === 'model')
             console.log(
               ' MODEL            ' +

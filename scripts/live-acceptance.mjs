@@ -7,7 +7,15 @@ const runRoot = resolve('.pitcrew', 'acceptance', randomUUID());
 const repo = join(runRoot, 'repo');
 const state = join(runRoot, 'state');
 await mkdir(runRoot, { recursive: true });
-await cp(resolve('fixtures/failing-test'), repo, { recursive: true });
+await cp(
+  resolve(
+    process.env.PITCREW_ACCEPTANCE_MULTIMODULE === '1'
+      ? 'fixtures/multi-module'
+      : 'fixtures/failing-test',
+  ),
+  repo,
+  { recursive: true },
+);
 const signal = AbortSignal.timeout(900000);
 async function run(executable, args, cwd = repo, timeoutMs = 60000) {
   return runProcess(

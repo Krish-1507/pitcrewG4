@@ -135,6 +135,25 @@ export type Candidate = z.infer<typeof candidateSchema>;
 export const eventSchema = z.discriminatedUnion('type', [
   z
     .object({
+      type: z.literal('delegation'),
+      id: z.string(),
+      role: z.enum([
+        'ceo',
+        'repository-scientist',
+        'architect',
+        'implementer',
+        'debugger',
+        'test-engineer',
+      ]),
+      status: z.enum(['started', 'completed', 'failed']),
+      mode: z.enum(['deterministic', 'model']),
+      paths: z.array(z.string()),
+      artifact: z.string().optional(),
+    })
+    .strict(),
+
+  z
+    .object({
       type: z.literal('control'),
       action: z.enum(['pause_requested', 'paused', 'resumed']),
     })
@@ -303,3 +322,42 @@ export const registeredProviderSchema = z
   })
   .strict();
 export type RegisteredProvider = z.infer<typeof registeredProviderSchema>;
+
+export const roleSchema = z.enum([
+  'ceo',
+  'repository-scientist',
+  'architect',
+  'implementer',
+  'debugger',
+  'test-engineer',
+]);
+export type AgentRole = z.infer<typeof roleSchema>;
+export const architecturePlanSchema = z
+  .object({
+    goal: z.string().min(1).max(2000),
+    assumptions: z.array(z.string().max(1000)).max(20),
+    expected_paths: z.array(z.string().min(1).max(500)).min(1).max(30),
+    acceptance: z.array(z.string().min(1).max(1000)).min(1).max(20),
+    risk: z.enum(['low', 'medium', 'high']),
+    verification: z.array(commandSchema).min(1).max(10),
+  })
+  .strict();
+export type ArchitecturePlan = z.infer<typeof architecturePlanSchema>;
+export const diagnosisSchema = z
+  .object({
+    summary: z.string().min(1).max(2000),
+    hypotheses: z
+      .array(
+        z
+          .object({
+            cause: z.string().min(1).max(2000),
+            evidence_paths: z.array(z.string().max(500)).min(1).max(30),
+            next_experiment: z.string().min(1).max(1000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(5),
+  })
+  .strict();
+export type Diagnosis = z.infer<typeof diagnosisSchema>;

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { MissionControl } from '@pitcrew/mission-runtime';
 import { evaluateEdit, actionHash } from '@pitcrew/policy-engine';
 import { PitCrewError } from '@pitcrew/protocol';
@@ -9,6 +9,7 @@ import type {
   MissionEvent,
   Candidate,
   Command,
+  ProviderConfig,
 } from '@pitcrew/protocol';
 import { EvidenceStore } from '@pitcrew/evidence';
 import { observe } from '@pitcrew/repo-intelligence';
@@ -22,10 +23,22 @@ import {
 import { runSandbox } from '@pitcrew/sandbox';
 import {
   propose,
+  generateStructured,
   configuredSecrets,
   selectRoute,
 } from '@pitcrew/model-gateway';
-import { implement } from '@pitcrew/agents';
+import type { ModelInput } from '@pitcrew/model-gateway';
+import {
+  implement,
+  planCrew,
+  shouldDebug,
+  validateArchitecture,
+  validateDiagnosis,
+  architectureFormat,
+  diagnosisFormat,
+  architectInstructions,
+  debuggerInstructions,
+} from '@pitcrew/agents';
 import { gate, invokeReferee } from '@pitcrew/openpitstop-adapter';
 import { assertNoSecrets } from '@pitcrew/observability';
 
@@ -76,7 +89,24 @@ async function execute(
     });
     await control.checkpoint(signal);
     baseline = await inspectBaseline(options.repo, signal);
+    const scientistId = 'dlg_' + randomUUID();
+    emit({
+      type: 'delegation',
+      id: scientistId,
+      role: 'repository-scientist',
+      status: 'started',
+      mode: 'deterministic',
+      paths: [],
+    });
     const context = await observe(baseline.root, options.request, signal);
+    emit({
+      type: 'delegation',
+      id: scientistId,
+      role: 'repository-scientist',
+      status: 'completed',
+      mode: 'deterministic',
+      paths: context.sources.map((s) => s.path),
+    });
     emit({
       type: 'evidence',
       label: 'repository context',
@@ -102,6 +132,29 @@ async function execute(
         'CONFIGURATION',
         'On Windows configure test as node plus an npm CLI script path, or a native test command.',
       );
+    const crew = planCrew(
+      options.request,
+      context.sources.map((s) => s.path),
+      test,
+    );
+    const coordinatorId = 'dlg_' + randomUUID();
+    emit({
+      type: 'delegation',
+      id: coordinatorId,
+      role: 'ceo',
+      status: 'started',
+      mode: 'deterministic',
+      paths: [],
+    });
+    emit({
+      type: 'delegation',
+      id: coordinatorId,
+      role: 'ceo',
+      status: 'completed',
+      mode: 'deterministic',
+      paths: [],
+      artifact: await store.artifact(JSON.stringify(crew)),
+    });
     emit({
       type: 'phase',
       state: 'PLANNING',
@@ -121,6 +174,30 @@ async function execute(
     );
     emit({ type: 'candidate', candidate });
     const beforeTest = await fingerprint(candidate.root, signal);
+    const testEngineerId = 'dlg_' + randomUUID();
+    emit({
+      type: 'delegation',
+      id: testEngineerId,
+      role: 'test-engineer',
+      status: 'started',
+      mode: 'deterministic',
+      paths: [],
+    });
+    emit({
+      type: 'delegation',
+      id: testEngineerId,
+      role: 'test-engineer',
+      status: 'completed',
+      mode: 'deterministic',
+      paths: [],
+      artifact: await store.artifact(
+        JSON.stringify({
+          acceptance: crew.acceptance,
+          baseline: beforeTest,
+          rule: 'Same command before and after edits; independent referee remains required.',
+        }),
+      ),
+    });
     const failed = await runSandbox(test, candidate.root, config.execution, {
       signal,
       timeoutMs: remaining(),
@@ -155,6 +232,111 @@ async function execute(
         'TOOL_ENVIRONMENT_FAILED',
         'Baseline failed without a recognized behavioral assertion. Fix the test environment first.',
       );
+    let calls = 0;
+    const unavailable = new Set<string>();
+    async function runRole<T>(
+      role: 'architect' | 'implementer' | 'debugger',
+      roleContext: unknown,
+      run: (provider: ProviderConfig, input: ModelInput) => Promise<T>,
+    ): Promise<T> {
+      const id = 'dlg_' + randomUUID();
+      const paths = [...crew.writePaths];
+      emit({
+        type: 'delegation',
+        id,
+        role,
+        status: 'started',
+        mode: 'model',
+        paths,
+      });
+      try {
+        const contextText = JSON.stringify(roleContext);
+        assertNoSecrets(contextText, configuredSecrets(config));
+        while (calls < config.budget.maxModelCalls) {
+          await control.checkpoint(signal);
+          signal.throwIfAborted();
+          const route = selectRoute(config, {
+            role,
+            risk: crew.risk,
+            contextChars: contextText.length + options.request.length + 2048,
+            tools: false,
+            priorFailures: unavailable,
+          });
+          calls++;
+          emit({
+            type: 'model',
+            calls,
+            provider: route.id + ':' + route.provider.type,
+            costUsd: null,
+          });
+          try {
+            const value = await run(route.provider, {
+              request: options.request,
+              context: contextText,
+              directory: join(store.root, 'bridge', mission.id, id),
+              signal,
+              timeoutMs: remaining(),
+            });
+            assertNoSecrets(JSON.stringify(value), configuredSecrets(config));
+            const artifact = await store.artifact(JSON.stringify(value));
+            emit({
+              type: 'delegation',
+              id,
+              role,
+              status: 'completed',
+              mode: 'model',
+              paths,
+              artifact,
+            });
+            return value;
+          } catch (error) {
+            if (
+              error instanceof PitCrewError &&
+              ['PROVIDER_UNAVAILABLE', 'RATE_LIMITED'].includes(error.code) &&
+              config.routing
+            ) {
+              unavailable.add(route.id);
+              if (calls < config.budget.maxModelCalls) continue;
+            }
+            throw error;
+          }
+        }
+        throw new PitCrewError(
+          'CONFIGURATION',
+          'Shared specialist model-call budget exhausted.',
+        );
+      } catch (error) {
+        emit({
+          type: 'delegation',
+          id,
+          role,
+          status: 'failed',
+          mode: 'model',
+          paths,
+        });
+        throw error;
+      }
+    }
+    let architecture: unknown;
+    if (crew.architect) {
+      architecture = await runRole(
+        'architect',
+        { crew, repository: context },
+        async (provider, input) =>
+          validateArchitecture(
+            (
+              await generateStructured(
+                provider,
+                input,
+                architectureFormat,
+                architectInstructions,
+              )
+            ).value,
+            crew,
+          ),
+      );
+      crew.writePaths = validateArchitecture(architecture, crew).expected_paths;
+    }
     emit({
       type: 'phase',
       state: 'IMPLEMENTING',
@@ -164,8 +346,10 @@ async function execute(
     const modifiedPaths = new Set<string>();
     let passed = false;
     let latest = failed;
-    const unavailable = new Set<string>();
-    for (let call = 1; call <= config.budget.maxModelCalls; call++) {
+    let failedAttempts = 0;
+    let diagnosed = false;
+    let diagnosis: unknown;
+    while (calls < config.budget.maxModelCalls) {
       signal.throwIfAborted();
       await control.checkpoint(signal);
       const currentContext = await observe(
@@ -173,53 +357,37 @@ async function execute(
         options.request,
         signal,
       );
-      const contextText = JSON.stringify({
+      const scopedContext = {
         repository: currentContext,
+        crew,
+        architecture,
+        diagnosis,
         test: { stdout: latest.stdout, stderr: latest.stderr },
-      });
-      assertNoSecrets(contextText, configuredSecrets(config));
-      const route = selectRoute(config, {
-        role: 'implementer',
-        risk: /auth|permission|tenant|billing|payment|migration|deploy|security/i.test(
-          options.request +
-            '\n' +
-            currentContext.sources.map((s) => s.path).join('\n'),
-        )
-          ? 'high'
-          : 'low',
-        contextChars: contextText.length + options.request.length + 1024,
-        tools: false,
-        priorFailures: unavailable,
-      });
-      emit({
-        type: 'model',
-        calls: call,
-        provider: route.id + ':' + route.provider.type,
-        costUsd: null,
-      });
-      let response;
-      try {
-        response = await propose(route.provider, {
-          request: options.request,
-          context: JSON.stringify({
-            repository: currentContext,
-            test: { stdout: latest.stdout, stderr: latest.stderr },
-          }),
-          directory: join(store.root, 'bridge', mission.id),
-          signal,
-          timeoutMs: remaining(),
-        });
-      } catch (error) {
-        if (
-          error instanceof PitCrewError &&
-          ['PROVIDER_UNAVAILABLE', 'RATE_LIMITED'].includes(error.code) &&
-          config.routing
-        ) {
-          unavailable.add(route.id);
-          if (call < config.budget.maxModelCalls) continue;
-        }
-        throw error;
+      };
+      if (shouldDebug(failedAttempts, diagnosed)) {
+        diagnosis = await runRole(
+          'debugger',
+          scopedContext,
+          async (provider, input) =>
+            validateDiagnosis(
+              (
+                await generateStructured(
+                  provider,
+                  input,
+                  diagnosisFormat,
+                  debuggerInstructions,
+                )
+              ).value,
+              currentContext.sources.map((s) => s.path),
+            ),
+        );
+        diagnosed = true;
       }
+      const response = await runRole(
+        'implementer',
+        { ...scopedContext, diagnosis },
+        propose,
+      );
       await control.checkpoint(signal);
       const identity = await fingerprint(candidate.root, signal);
       const risky = response.proposal.edits.filter(
@@ -280,7 +448,7 @@ async function execute(
         {
           candidateIdentity: identity,
           actions: approvedActions,
-          paths: currentContext.sources.map((source) => source.path),
+          paths: crew.writePaths,
         },
       );
       for (const path of paths) modifiedPaths.add(path);
@@ -313,7 +481,8 @@ async function execute(
         passed = true;
         break;
       }
-      if (call < config.budget.maxModelCalls)
+      failedAttempts++;
+      if (calls < config.budget.maxModelCalls)
         emit({
           type: 'phase',
           state: 'IMPLEMENTING',

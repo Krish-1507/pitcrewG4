@@ -55,3 +55,14 @@ export async function implement(
   }
   return prepared.map((file) => file.path);
 }
+export {
+  planCrew,
+  shouldDebug,
+  validateArchitecture,
+  validateDiagnosis,
+  architectureFormat,
+  diagnosisFormat,
+  architectInstructions,
+  debuggerInstructions,
+} from './roles.js';
+export type { CrewPlan } from './roles.js';
