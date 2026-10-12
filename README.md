@@ -8,7 +8,7 @@ This repository is not yet a production release. See [delivery status](docs/stat
 
 ## Development
 
-Node.js 22.12 or newer, Git and pnpm 11.19.0 are required.
+Node.js 22.13 or newer, Git and pnpm 11.19.0 are required.
 
 ```sh
 pnpm install

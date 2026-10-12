@@ -2,7 +2,7 @@
 
 This is a development CLI vertical slice, not the completed desktop product.
 
-1. Install Node 22.12+, Git and pnpm 11.19.0.
+1. Install Node 22.13+, Git and pnpm 11.19.0.
 2. Run `pnpm install --frozen-lockfile` and `pnpm build`.
 3. Authenticate the official Codex CLI yourself. PitCrew never reads its tokens.
 4. Create a trusted JSON configuration outside the target repository (example below).
