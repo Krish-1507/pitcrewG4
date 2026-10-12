@@ -11,6 +11,7 @@ export const stateSchema = z.enum([
   'IMPLEMENTING',
   'TESTING',
   'VERIFYING',
+  'SELECTING',
   'FINAL_GATE',
   'VERIFIED',
   'BLOCKED',
@@ -132,6 +133,35 @@ export const candidateSchema = z
   })
   .strict();
 export type Candidate = z.infer<typeof candidateSchema>;
+export const branchTriggerSchema = z.enum([
+  'weak-proof',
+  'uncertain-hypothesis',
+  'repeated-failure',
+  'high-risk',
+  'architecture-fork',
+]);
+export type BranchTrigger = z.infer<typeof branchTriggerSchema>;
+export const arenaHypothesisSchema = z
+  .object({
+    key: z.string().min(1).max(64),
+    hypothesis: z.string().min(1).max(2000),
+  })
+  .strict();
+export type ArenaHypothesis = z.infer<typeof arenaHypothesisSchema>;
+export const normalizedVerificationSchema = z
+  .object({
+    candidateId: z.string().min(1),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+    targetPass: z.boolean(),
+    regressionPass: z.boolean(),
+    integrityClean: z.boolean(),
+    concurrencyPass: z.boolean().nullable(),
+    detail: z.string().min(1).max(2000),
+  })
+  .strict();
+export type NormalizedVerification = z.infer<
+  typeof normalizedVerificationSchema
+>;
 export const eventSchema = z.discriminatedUnion('type', [
   z
     .object({
@@ -189,6 +219,31 @@ export const eventSchema = z.discriminatedUnion('type', [
     .strict(),
   z
     .object({
+      type: z.literal('arena.decision'),
+      branch: z.boolean(),
+      triggers: z.array(branchTriggerSchema).max(5),
+      reason: z.string().min(1).max(2000),
+      hypotheses: z.array(arenaHypothesisSchema).min(1).max(8),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('candidate.eliminated'),
+      candidateId: z.string().min(1),
+      digest: z.string().regex(/^[a-f0-9]{64}$/),
+      reason: z.string().min(1).max(2000),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('candidate.selected'),
+      candidateId: z.string().min(1),
+      digest: z.string().regex(/^[a-f0-9]{64}$/),
+      reason: z.string().min(1).max(2000),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('evidence'),
       label: z.string(),
       artifact: z.string(),
@@ -229,6 +284,27 @@ export const missionSchema = z.object({
   state: stateSchema,
   message: z.string(),
   candidate: candidateSchema.optional(),
+  candidates: z.array(candidateSchema).max(8).optional(),
+  eliminations: z
+    .array(
+      z
+        .object({
+          candidateId: z.string(),
+          digest: z.string(),
+          reason: z.string(),
+        })
+        .strict(),
+    )
+    .max(8)
+    .optional(),
+  selection: z
+    .object({
+      candidateId: z.string(),
+      digest: z.string(),
+      reason: z.string(),
+    })
+    .strict()
+    .optional(),
   events: z.array(storedEventSchema),
   control: z.enum(['running', 'pause_requested', 'paused']).optional(),
   evidenceState: z.enum(['CURRENT', 'STALE', 'UNAVAILABLE']).optional(),

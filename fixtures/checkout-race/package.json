@@ -1,0 +1,8 @@
+{
+  "name": "pitcrew-arena-checkout-race",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -421,7 +421,7 @@ export async function startDaemon(
       return;
     }
     const missionMatch =
-      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|pause|resume|diff|events))?$/.exec(
+      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|pause|resume|diff|events|arena|candidates))?$/.exec(
         path,
       );
     if (missionMatch) {
@@ -452,6 +452,17 @@ export async function startDaemon(
         const mission = await currentMission(id);
         if (action === 'events') {
           json(res, 200, { events: mission.events });
+          return;
+        }
+        if (action === 'arena' || action === 'candidates') {
+          json(res, 200, {
+            candidates: mission.candidates ?? [],
+            eliminations: mission.eliminations ?? [],
+            selection: mission.selection ?? null,
+            decisions: mission.events
+              .filter((item) => item.event.type === 'arena.decision')
+              .map((item) => item.event),
+          });
           return;
         }
         if (action === 'diff') {

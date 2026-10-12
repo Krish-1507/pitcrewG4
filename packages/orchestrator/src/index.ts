@@ -19,6 +19,11 @@ import {
   fingerprint,
   candidateDiff,
   checkpoint,
+  shouldBranch,
+  describeBranchReason,
+  normalizeVerification,
+  eliminationReason,
+  detectTestWeakening,
 } from '@pitcrew/candidate-manager';
 import { runSandbox } from '@pitcrew/sandbox';
 import {
@@ -173,6 +178,27 @@ async function execute(
       signal,
     );
     emit({ type: 'candidate', candidate });
+    const branchTriggers = shouldBranch({
+      proofWeak: crew.architect,
+      hypothesisUncertain: crew.architect,
+      repeatedFailures: 0,
+      highRisk: crew.risk === 'high',
+      architectureFork: false,
+      // No model call is consumed before this decision; deterministic
+      // Repository Scientist, CEO and Test Engineer work is local only.
+      budgetRemaining: true,
+    });
+    emit({
+      type: 'arena.decision',
+      branch: false,
+      triggers: branchTriggers.triggers,
+      reason:
+        describeBranchReason(branchTriggers.triggers) +
+        (branchTriggers.triggers.length
+          ? ' This run continues on a single bounded candidate.'
+          : ''),
+      hypotheses: [{ key: 'candidate-a', hypothesis: crew.goal }],
+    });
     const beforeTest = await fingerprint(candidate.root, signal);
     const testEngineerId = 'dlg_' + randomUUID();
     emit({
@@ -496,13 +522,40 @@ async function execute(
         'Candidate still fails targeted verification. Model call budget exhausted.',
       );
     const diff = await candidateDiff(candidate, signal);
+    const candidateDigest = await fingerprint(candidate.root, signal);
     emit({
       type: 'evidence',
       label: 'candidate diff',
       artifact: await store.artifact(diff),
-      digest: await fingerprint(candidate.root, signal),
+      digest: candidateDigest,
       exitCode: null,
     });
+    // Normalized verification binds this exact digest to the targeted pass.
+    // A candidate that weakens its own tests is eliminated here, before any
+    // independent referee time is spent.
+    const weakening = detectTestWeakening(diff, [...modifiedPaths]);
+    const normalized = normalizeVerification({
+      candidateId: candidate.id,
+      digest: candidateDigest,
+      evidenceDigest: candidateDigest,
+      targetExit: 0,
+      regressionExit: latest.exitCode,
+      integrityClean: !weakening.weakened,
+      concurrencyPass: null,
+      detail:
+        weakening.details.join('; ') ||
+        'Targeted verification passed with verification files unchanged.',
+    });
+    const elimination = eliminationReason(normalized);
+    if (elimination) {
+      emit({
+        type: 'candidate.eliminated',
+        candidateId: candidate.id,
+        digest: candidateDigest,
+        reason: elimination,
+      });
+      throw new PitCrewError('VERIFICATION_FAILED', elimination);
+    }
     emit({
       type: 'phase',
       state: 'VERIFYING',
@@ -553,6 +606,12 @@ async function execute(
     }
     emit({
       type: 'phase',
+      state: 'SELECTING',
+      message:
+        'Comparing candidate evidence against acceptance before the final gate.',
+    });
+    emit({
+      type: 'phase',
       state: 'FINAL_GATE',
       message: 'Requesting OpenPitStop strict final verdict.',
     });
@@ -565,6 +624,16 @@ async function execute(
         'STALE_EVIDENCE',
         'Baseline changed during mission.',
       );
+    // The surviving candidate is selected only after independent
+    // verification. Selection references the exact gated digest and is
+    // recorded before the terminal verdict keeps history append-only.
+    if (result.verdict === 'VERIFIED')
+      emit({
+        type: 'candidate.selected',
+        candidateId: candidate.id,
+        digest: result.digest,
+        reason: 'Passed target behavior and regression checks.',
+      });
     emit({
       type: 'referee',
       verdict: result.verdict,

@@ -9,7 +9,9 @@ const next: Partial<Record<MissionState, readonly MissionState[]>> = {
   BASELINING: ['IMPLEMENTING'],
   IMPLEMENTING: ['TESTING', 'AWAITING_APPROVAL'],
   TESTING: ['IMPLEMENTING', 'VERIFYING'],
-  VERIFYING: ['FINAL_GATE'],
+  VERIFYING: ['SELECTING', 'FINAL_GATE'],
+  SELECTING: ['FINAL_GATE'],
+  FINAL_GATE: [],
 };
 export function isTerminal(state: MissionState): boolean {
   return ['VERIFIED', 'BLOCKED', 'NOT_PROVEN', 'CANCELLED'].includes(state);
@@ -33,8 +35,37 @@ export function reduceMission(mission: Mission, event: MissionEvent): Mission {
       throw new PitCrewError('INTERNAL', 'Forbidden mission transition.');
     return { ...mission, state: event.state, message: event.message };
   }
-  if (event.type === 'candidate')
-    return { ...mission, candidate: event.candidate };
+  if (event.type === 'candidate') {
+    const candidates = mission.candidates ?? [];
+    if (!candidates.some((c) => c.id === event.candidate.id))
+      candidates.push(event.candidate);
+    return { ...mission, candidate: event.candidate, candidates };
+  }
+  if (event.type === 'arena.decision') return mission;
+  if (event.type === 'candidate.eliminated') {
+    const eliminations = mission.eliminations ?? [];
+    if (!eliminations.some((e) => e.candidateId === event.candidateId))
+      eliminations.push({
+        candidateId: event.candidateId,
+        digest: event.digest,
+        reason: event.reason,
+      });
+    return { ...mission, eliminations };
+  }
+  if (event.type === 'candidate.selected') {
+    const selected = (mission.candidates ?? []).find(
+      (c) => c.id === event.candidateId,
+    );
+    return {
+      ...mission,
+      selection: {
+        candidateId: event.candidateId,
+        digest: event.digest,
+        reason: event.reason,
+      },
+      ...(selected ? { candidate: selected } : {}),
+    };
+  }
   if (event.type === 'referee') {
     if (mission.state !== 'FINAL_GATE' || !mission.candidate)
       throw new PitCrewError(

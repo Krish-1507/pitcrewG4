@@ -148,6 +148,26 @@ export async function createCandidate(
   );
   return { id, root: candidateRoot, branch, baseline };
 }
+export {
+  shouldBranch,
+  describeBranchReason,
+  assertIndependentHypotheses,
+  isTestPath,
+  detectTestWeakening,
+  normalizeVerification,
+  eliminationReason,
+  selectCandidate,
+  patchIdentity,
+  treeDigest,
+  savePatch,
+  replayPatch,
+  disposeCandidate,
+} from './arena.js';
+export type {
+  BranchDecision,
+  WeakeningReport,
+  RefereeVerdict,
+} from './arena.js';
 export async function candidateDiff(
   candidate: Candidate,
   signal: AbortSignal,

@@ -193,6 +193,27 @@ if (options.values.help || !options.positionals.length) {
                 ' · ' +
                 item.event.mode,
             );
+          else if (item.event.type === 'arena.decision')
+            console.log(
+              ' ARENA            ' +
+                (item.event.branch ? 'branch' : 'single-path') +
+                ' · ' +
+                item.event.reason,
+            );
+          else if (item.event.type === 'candidate.eliminated')
+            console.log(
+              ' ARENA            eliminated ' +
+                item.event.candidateId +
+                ' · ' +
+                item.event.reason,
+            );
+          else if (item.event.type === 'candidate.selected')
+            console.log(
+              ' ARENA            selected ' +
+                item.event.candidateId +
+                ' · ' +
+                item.event.reason,
+            );
           else if (item.event.type === 'model')
             console.log(
               ' MODEL            ' +
