@@ -272,8 +272,6 @@ Cancellation must terminate process trees.
 
 ## 14. UI rules
 
-Follow `2_Design-System.md`.
-
 - green means evidence-backed pass;
 - no fake percent complete;
 - no fake thinking;
