@@ -1,6 +1,6 @@
 # Roadmap
 
-Milestones 0 through 14 are implemented. Release hardening is the remaining milestone.
+Milestones 0 through 15 are implemented. Release-gate verification is recorded in [validation/release-gate.md](validation/release-gate.md). The only gate still NOT_PROVEN is a clean macOS installation.
 
 Each milestone ships only when the deterministic suite passes and the recorded evidence is linked from [validation/features-7-15.md](validation/features-7-15.md).
 
@@ -55,9 +55,11 @@ A public benchmark, `benchmarks/pitcrew-core`, spanning simple bugs, multi-file 
 
 A competition-ready profile under `profiles/g4/` that maps Context Packs, candidate identity, budgets, the Arena and the final gate onto competition tooling. Desktop, provider gateway and non-essential integrations are excluded.
 
-## Remaining: release hardening
+## Release hardening status
 
 Clean-machine verification across Windows, Linux and macOS, with and without Docker, local models, OpenPitStop present or missing, interrupted missions, dirty trees, large repos and monorepos. Missing OpenPitStop yields NOT_PROVEN, never a pass.
+
+Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment.
 
 ## Release gate
 

@@ -62,4 +62,5 @@ This page links each delivered milestone to its code and executable evidence. A 
 
 - Documentation: [sandbox-security.md](../sandbox-security.md), [troubleshooting.md](../troubleshooting.md), [limitations.md](../limitations.md), [third-party-notices.md](../third-party-notices.md), [benchmark-methodology.md](../benchmark-methodology.md).
 - `scripts/release-check.mjs` runs build, test, typecheck, lint and format checks, confirms the referee is installed and checks that benchmark raw results exist.
+- OpenPitStop strict verification on the clean source commit reports OK, CLEAN integrity, TRUSTWORTHY honesty and 92/92 tests.
 - Release gate evidence is tracked in [release-gate.md](release-gate.md).
