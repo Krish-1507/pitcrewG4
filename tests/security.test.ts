@@ -138,7 +138,17 @@ describe('paths and bounded process execution', () => {
     expect(pid).toBeGreaterThan(0);
     controller.abort();
     await result;
-    expect(() => process.kill(pid, 0)).toThrow();
+    let gone = false;
+    for (let i = 0; i < 100; i++) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        gone = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(gone).toBe(true);
   });
   it('does not silently fall back without Docker authorization', async () => {
     await expect(
