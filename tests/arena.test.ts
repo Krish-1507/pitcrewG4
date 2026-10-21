@@ -598,7 +598,19 @@ describe('duplicate-checkout arena hero', () => {
       expect(selection?.candidateId).toBe(candidateC.id);
 
       // Baseline untouched by the whole arena.
-      expect(await fingerprint(root, signal)).toBe(baselineDigest);
+      const finalFingerprint = await fingerprint(root, signal);
+      if (finalFingerprint !== baselineDigest) {
+        const status = await git(
+          root,
+          ['status', '--porcelain=v1', '--untracked-files=all'],
+          signal,
+        );
+        throw new Error(
+          'Baseline mutated during the arena: ' +
+            (status.trim() || 'no working-tree change; index or mode changed'),
+        );
+      }
+      expect(finalFingerprint).toBe(baselineDigest);
       expect((await git(root, ['status', '--porcelain'], signal)).trim()).toBe(
         '',
       );
