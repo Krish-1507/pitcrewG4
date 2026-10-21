@@ -10,8 +10,9 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@pitcrew/protocol": "workspace:*",
     "@pitcrew/daemon": "workspace:*",
+    "@pitcrew/protocol": "workspace:*",
+    "@pitcrew/skills": "workspace:*",
     "zod": "3.25.76"
   }
 }

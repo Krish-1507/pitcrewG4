@@ -1,0 +1,6 @@
+{
+  "name": "security-review",
+  "description": "Trace untrusted input, process execution and permission boundaries.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read"]
+}

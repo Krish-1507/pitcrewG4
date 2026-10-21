@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { fork } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -7,12 +8,14 @@ import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { missionSchema } from '@pitcrew/protocol';
+import { loadSkills } from '@pitcrew/skills';
 
 const options = parseArgs({
   options: {
     config: { type: 'string' },
     state: { type: 'string' },
     repo: { type: 'string' },
+    mutations: { type: 'string' },
     json: { type: 'boolean' },
     help: { type: 'boolean' },
   },
@@ -20,7 +23,7 @@ const options = parseArgs({
 });
 if (options.values.help || !options.positionals.length) {
   console.log(
-    'PITCREW\n\nUsage: pitcrew --config <trusted.json> [--repo .] [--state .pitcrew] "<mission>"\n       pitcrew --config <trusted.json> doctor | open | replay <mission> | diff <mission>\n\nEvidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.\nDevelopment P0: explicit provider and execution configuration required.',
+    'PITCREW\n\nUsage: pitcrew --config <trusted.json> [--repo .] [--state .pitcrew] "<mission>"\n       pitcrew --config <trusted.json> doctor | open | ui | replay <mission> | diff <mission> | certificate <mission>\n       pitcrew --config <trusted.json> story <project> | skills <dir> | blindspot --repo <path> --mutations <file.json>\n\nEvidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.\nDevelopment P0: explicit provider and execution configuration required.',
   );
 } else {
   if (!options.values.config)
@@ -105,7 +108,47 @@ if (options.values.help || !options.positionals.length) {
     const command = options.positionals[0];
     if (command === 'doctor')
       console.log(JSON.stringify(await api('doctor'), null, 2));
-    else if (command === 'open')
+    else if (command === 'ui')
+      console.log(
+        'Mission Control: ' + connection.url + '/#token=' + connection.token,
+      );
+    else if (command === 'blindspot') {
+      if (!options.values.mutations)
+        throw new Error(
+          'Pass --mutations with a JSON array of controlled mutations.',
+        );
+      const mutations: unknown = JSON.parse(
+        await readFile(resolve(options.values.mutations), 'utf8'),
+      );
+      console.log(
+        JSON.stringify(
+          await api('blindspot', {
+            repo: resolve(options.values.repo ?? '.'),
+            mutations,
+          }),
+          null,
+          2,
+        ),
+      );
+    } else if (command === 'story') {
+      const id = options.positionals[1];
+      if (!id || !/^prj_[a-f0-9-]+$/.test(id))
+        throw new Error('A valid project ID is required.');
+      console.log(
+        JSON.stringify(await api('projects/' + id + '/story'), null, 2),
+      );
+    } else if (command === 'skills') {
+      const skills = await loadSkills(
+        resolve(options.positionals[1] ?? 'skills'),
+      );
+      console.log(
+        JSON.stringify(
+          skills.map((skill) => skill.manifest),
+          null,
+          2,
+        ),
+      );
+    } else if (command === 'open')
       console.log(
         JSON.stringify(
           await api('projects/open', {
@@ -115,13 +158,19 @@ if (options.values.help || !options.positionals.length) {
           2,
         ),
       );
-    else if (command === 'replay' || command === 'diff') {
+    else if (
+      command === 'replay' ||
+      command === 'diff' ||
+      command === 'certificate'
+    ) {
       const id = options.positionals[1];
       if (!id || !/^mis_[a-f0-9-]+$/.test(id))
         throw new Error('A valid mission ID is required.');
       console.log(
         JSON.stringify(
-          await api('missions/' + id + (command === 'diff' ? '/diff' : '')),
+          await api(
+            'missions/' + id + (command === 'replay' ? '' : '/' + command),
+          ),
           null,
           2,
         ),

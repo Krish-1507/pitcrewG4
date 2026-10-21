@@ -1,0 +1,6 @@
+{
+  "name": "api-contract",
+  "description": "Review request and response contracts for compatibility and validation.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read"]
+}

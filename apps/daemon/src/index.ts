@@ -1,12 +1,24 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { EvidenceStore } from '@pitcrew/evidence';
+import { EvidenceStore, buildMergeCertificate } from '@pitcrew/evidence';
 import { startMission } from '@pitcrew/orchestrator';
-import { candidateDiff, fingerprint } from '@pitcrew/candidate-manager';
-import { indexRepository } from '@pitcrew/repo-intelligence';
-import { runProcess } from '@pitcrew/sandbox';
+import {
+  candidateDiff,
+  createCandidate,
+  disposeCandidate,
+  fingerprint,
+  inspectBaseline,
+} from '@pitcrew/candidate-manager';
+import { runBlindspot } from '@pitcrew/blindspot';
+import { runBrowserScenario } from '@pitcrew/browser-lab';
+import { browserScenarioSchema } from '@pitcrew/browser-lab';
+import { runProcess, runSandbox } from '@pitcrew/sandbox';
+import { indexRepository, buildRepoStory } from '@pitcrew/repo-intelligence';
 import {
   configuredSecrets,
   providerSecrets,
@@ -15,7 +27,13 @@ import {
   deleteCredential,
 } from '@pitcrew/model-gateway';
 import { validateConfig } from '@pitcrew/config';
-import { providerSchema, configSchema } from '@pitcrew/protocol';
+import {
+  blindspotAssumptionSchema,
+  blindspotMutationSchema,
+  commandSchema,
+  providerSchema,
+  configSchema,
+} from '@pitcrew/protocol';
 import type { RuntimeConfig } from '@pitcrew/protocol';
 
 const createSchema = z
@@ -116,14 +134,59 @@ export async function startDaemon(
   });
   server.requestTimeout = 30000;
   server.headersTimeout = 10000;
+  const uiRoot = resolve(
+    fileURLToPath(new URL('../../desktop/dist/', import.meta.url)),
+  );
+  function uiAsset(path: string): string | undefined {
+    if (path === '/' || path === '/index.html')
+      return resolve(uiRoot, 'index.html');
+    if (!path.startsWith('/ui/')) return undefined;
+    let relative: string;
+    try {
+      relative = decodeURIComponent(path.slice(4));
+    } catch {
+      return undefined;
+    }
+    const target = resolve(uiRoot, relative);
+    if (!target.startsWith(uiRoot + sep)) return undefined;
+    return target;
+  }
+  const contentTypes: Record<string, string> = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+  };
   async function route(
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<void> {
+    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    const asset = req.method === 'GET' ? uiAsset(path) : undefined;
+    if (asset) {
+      const extension = asset.slice(asset.lastIndexOf('.'));
+      try {
+        const body = await readFile(asset);
+        res.writeHead(200, {
+          'content-type': contentTypes[extension] ?? 'application/octet-stream',
+          'cache-control': 'no-store',
+        });
+        res.end(body);
+      } catch {
+        res.writeHead(404);
+        res.end();
+      }
+      return;
+    }
     const auth = req.headers.authorization ?? '';
     const expected = 'Bearer ' + token;
+    const origin = req.headers.origin;
+    const sameOrigin =
+      !origin || origin === 'http://' + (req.headers.host ?? '');
     if (
-      req.headers.origin ||
+      !sameOrigin ||
       !['127.0.0.1', '::ffff:127.0.0.1'].includes(
         req.socket.remoteAddress ?? '',
       ) ||
@@ -138,7 +201,6 @@ export async function startDaemon(
       });
       return;
     }
-    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
     if (req.method === 'GET' && path === '/v1/health') {
       json(res, 200, { status: 'ready', version: '0.1.0-dev' });
       return;
@@ -318,6 +380,68 @@ export async function startDaemon(
       });
       return;
     }
+    if (req.method === 'POST' && path === '/v1/blindspot') {
+      const input = z
+        .object({
+          repo: z.string().min(1),
+          mutations: z.array(blindspotMutationSchema).min(1).max(20),
+          assumptions: z.array(blindspotAssumptionSchema).max(50).default([]),
+          test: commandSchema.optional(),
+        })
+        .strict()
+        .parse(await body(req));
+      const signal = AbortSignal.timeout(180000);
+      const baseline = await inspectBaseline(input.repo, signal);
+      const test = input.test ?? config.test;
+      if (!test)
+        throw new Error(
+          'No verification command configured for blindspot mutations.',
+        );
+      const candidate = await createCandidate(
+        baseline.root,
+        stateRoot,
+        baseline.head,
+        signal,
+      );
+      try {
+        const report = await runBlindspot({
+          root: candidate.root,
+          mutations: input.mutations,
+          assumptions: input.assumptions,
+          verify: async (root, verifierSignal) => {
+            const result = await runSandbox(test, root, config.execution, {
+              signal: verifierSignal,
+              timeoutMs: 120000,
+            });
+            return { exitCode: result.exitCode };
+          },
+          signal,
+        });
+        json(res, 200, report);
+      } finally {
+        await disposeCandidate(baseline.root, candidate, signal).catch(
+          () => undefined,
+        );
+      }
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/browser/qa') {
+      const input = z
+        .object({
+          scenario: browserScenarioSchema,
+          mode: z.enum(['observe', 'headless', 'replay']).default('headless'),
+        })
+        .strict()
+        .parse(await body(req));
+      const result = await runBrowserScenario({
+        scenario: input.scenario,
+        mode: input.mode,
+        artifactDir: resolve(store.root, 'browser', randomUUID()),
+        signal: AbortSignal.timeout(180000),
+      });
+      json(res, 200, result);
+      return;
+    }
     if (req.method === 'GET' && path === '/v1/projects') {
       json(res, 200, { projects: store.projects() });
       return;
@@ -332,6 +456,13 @@ export async function startDaemon(
         (req.method === 'POST' && projectMatch[2] === 'observe'))
     ) {
       const root = store.projectRoot(projectMatch[1]!);
+      if (req.method === 'GET' && projectMatch[2] === 'story') {
+        const graph =
+          (await store.loadGraph(root)) ??
+          (await indexRepository(root, AbortSignal.timeout(30000)));
+        json(res, 200, buildRepoStory(graph));
+        return;
+      }
       const graph = await indexRepository(root, AbortSignal.timeout(30000));
       const artifact = await store.saveGraph(graph);
       json(res, 200, { graph, artifact, facts: store.facts(root) });
@@ -421,7 +552,7 @@ export async function startDaemon(
       return;
     }
     const missionMatch =
-      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|pause|resume|diff|events|arena|candidates))?$/.exec(
+      /^\/v1\/missions\/(mis_[a-f0-9-]+)(?:\/(cancel|pause|resume|diff|events|arena|candidates|certificate))?$/.exec(
         path,
       );
     if (missionMatch) {
@@ -463,6 +594,21 @@ export async function startDaemon(
               .filter((item) => item.event.type === 'arena.decision')
               .map((item) => item.event),
           });
+          return;
+        }
+        if (action === 'certificate') {
+          const certificate = buildMergeCertificate(mission);
+          if (!certificate) {
+            json(res, 409, {
+              error: {
+                code: 'NOT_PROVEN',
+                message:
+                  'No independent verdict exists, so no merge certificate can be issued.',
+              },
+            });
+            return;
+          }
+          json(res, 200, certificate);
           return;
         }
         if (action === 'diff') {

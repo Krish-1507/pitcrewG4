@@ -1,0 +1,6 @@
+{
+  "name": "browser-qa",
+  "description": "Exercise authorized web targets through managed browser scenarios.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "browser:qa", "network:read"]
+}

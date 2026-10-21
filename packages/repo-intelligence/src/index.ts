@@ -89,3 +89,4 @@ export async function observe(
 
 export { indexRepository } from './index-repository.js';
 export { parseStructure, contentHash } from './structure.js';
+export { buildRepoStory } from './story.js';

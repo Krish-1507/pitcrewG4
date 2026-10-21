@@ -7,14 +7,16 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@pitcrew/protocol": "workspace:*",
+    "@pitcrew/blindspot": "workspace:*",
+    "@pitcrew/browser-lab": "workspace:*",
+    "@pitcrew/candidate-manager": "workspace:*",
     "@pitcrew/config": "workspace:*",
     "@pitcrew/evidence": "workspace:*",
-    "@pitcrew/orchestrator": "workspace:*",
-    "@pitcrew/repo-intelligence": "workspace:*",
-    "@pitcrew/candidate-manager": "workspace:*",
-    "@pitcrew/sandbox": "workspace:*",
     "@pitcrew/model-gateway": "workspace:*",
+    "@pitcrew/orchestrator": "workspace:*",
+    "@pitcrew/protocol": "workspace:*",
+    "@pitcrew/repo-intelligence": "workspace:*",
+    "@pitcrew/sandbox": "workspace:*",
     "zod": "3.25.76"
   }
 }

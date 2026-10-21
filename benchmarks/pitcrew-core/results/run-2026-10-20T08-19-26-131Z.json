@@ -1,0 +1,185 @@
+{
+  "benchmark": "pitcrew-core",
+  "mode": "baseline-fixture-validation",
+  "generatedAt": "2026-10-20T08:19:26.131Z",
+  "commit": "7b72578d9c3540885ccbffe4fdd89aee8ae2411d",
+  "dirty": true,
+  "environment": {
+    "platform": "win32",
+    "release": "node",
+    "node": "v22.23.2"
+  },
+  "contenders": [],
+  "limitations": [
+    "No model-backed contender was executed in this environment; these results validate the harness and fixture baselines only.",
+    "A green baseline row does not measure agent task success, false-done rate or regressions.",
+    "Browser recovery requires a locally installed Chrome or Edge and a local HTTP server."
+  ],
+  "tasks": [
+    {
+      "id": "simple-bug",
+      "category": "simple bug",
+      "description": "A failing unit test must fail on the baseline until the defect is fixed.",
+      "fixture": "fixtures/failing-test",
+      "command": {
+        "executable": "node",
+        "args": ["--test"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "TAP version 13\n# Subtest: adds two positive numbers\nnot ok 1 - adds two positive numbers\n  ---\n  duration_ms: 3.2358\n  type: 'test'\n  location: 'D:\\\\PitCrew G4\\\\fixtures\\\\failing-test\\\\test\\\\sum.test.js:5:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    -1 !== 5\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 5\n  actual: -1\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/failing-test/test/sum.test.js:5:48)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.start (node:internal/test_runner/test:944:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\n  ...\n# Subtest: adds negative numbers\nnot ok 2 - adds negative numbers\n  ---\n  duration_ms: 0.49\n  type: 'test'\n  location: 'D:\\\\PitCrew G4\\\\fixtures\\\\failing-test\\\\test\\\\sum.test.js:6:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    1 !== -5\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: -5\n  actual: 1\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/failing-test/test/sum.test.js:6:44)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n# Subtest: adding zero preserves a number\nok 3 - adding zero preserves a number\n  ---\n  duration_ms: 0.3908\n  type: 'test'\n  ...\n1..3\n# tests 3\n# suites 0\n# pass 1\n# fail 2\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 189.4995\n",
+      "stderr": ""
+    },
+    {
+      "id": "multi-file-feature",
+      "category": "multi-file feature",
+      "description": "Visible tests across modules pass on the baseline fixture.",
+      "fixture": "fixtures/multi-module",
+      "command": {
+        "executable": "node",
+        "args": ["--test"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "TAP version 13\n# Subtest: adds item totals\nnot ok 1 - adds item totals\n  ---\n  duration_ms: 3.1169\n  type: 'test'\n  location: 'D:\\\\PitCrew G4\\\\fixtures\\\\multi-module\\\\total.test.js:5:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    -1 !== 5\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 5\n  actual: -1\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:5:39)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.start (node:internal/test_runner/test:944:17)\n    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)\n  ...\n# Subtest: multiplies quantity by price\nnot ok 2 - multiplies quantity by price\n  ---\n  duration_ms: 0.6049\n  type: 'test'\n  location: 'D:\\\\PitCrew G4\\\\fixtures\\\\multi-module\\\\total.test.js:6:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    5 !== 6\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 6\n  actual: 5\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:6:51)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)\n  ...\n# Subtest: empty cart line costs zero\nnot ok 3 - empty cart line costs zero\n  ---\n  duration_ms: 0.3889\n  type: 'test'\n  location: 'D:\\\\PitCrew G4\\\\fixtures\\\\multi-module\\\\total.test.js:7:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    4 !== 0\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 0\n  actual: 4\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:7:49)\n    Test.runInAsyncScope (node:async_hooks:214:14)\n    Test.run (node:internal/test_runner/test:1047:25)\n    Test.processPendingSubtests (node:internal/test_runner/test:744:18)\n    Test.postRun (node:internal/test_runner/test:1173:19)\n    Test.run (node:internal/test_runner/test:1101:12)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n1..3\n# tests 3\n# suites 0\n# pass 0\n# fail 3\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 195.9235\n",
+      "stderr": ""
+    },
+    {
+      "id": "architecture-boundaries",
+      "category": "architecture boundaries",
+      "description": "Import boundaries hold for every workspace package.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "id": "authz-coverage",
+      "category": "authz",
+      "description": "The strong verifier rejects anonymous and wrong-role callers.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/strong.test.js"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "TAP version 13\n# Subtest: an anonymous caller is rejected\nok 1 - an anonymous caller is rejected\n  ---\n  duration_ms: 3.8586\n  type: 'test'\n  ...\n# Subtest: a non-admin may not delete\nok 2 - a non-admin may not delete\n  ---\n  duration_ms: 0.7659\n  type: 'test'\n  ...\n# Subtest: a non-positive quantity is rejected\nok 3 - a non-positive quantity is rejected\n  ---\n  duration_ms: 0.7675\n  type: 'test'\n  ...\n1..3\n# tests 3\n# suites 0\n# pass 3\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 184.4862\n",
+      "stderr": ""
+    },
+    {
+      "id": "concurrency-race",
+      "category": "concurrency",
+      "description": "Concurrent duplicate checkouts must reproduce duplicate orders.",
+      "fixture": "fixtures/checkout-race",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/repro-concurrency.mjs", "auto", "benchmark-key", "6"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "orders=3\n",
+      "stderr": ""
+    },
+    {
+      "id": "visible-test-blindspot",
+      "category": "visible-test blindspot",
+      "description": "The weak suite passes even though the auth hole is unprotected.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/weak.test.js"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "TAP version 13\n# Subtest: an admin may delete\nok 1 - an admin may delete\n  ---\n  duration_ms: 1.8854\n  type: 'test'\n  ...\n# Subtest: a positive quantity is valid\nok 2 - a positive quantity is valid\n  ---\n  duration_ms: 0.3712\n  type: 'test'\n  ...\n1..2\n# tests 2\n# suites 0\n# pass 2\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 158.852\n",
+      "stderr": ""
+    },
+    {
+      "id": "browser-recovery",
+      "category": "browser recovery",
+      "description": "A seeded checkout recovery defect is reproduced and a fixed page passes.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/browser-acceptance.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "{\n  \"bug\": [\n    {\n      \"ok\": false,\n      \"message\": \"Expected text \\\"Payment failed\\\" in \\\"\\\".\"\n    },\n    {\n      \"ok\": false,\n      \"message\": \"Expected text \\\"Payment failed\\\" in \\\"\\\".\"\n    }\n  ],\n  \"fixed\": [\n    {\n      \"ok\": true,\n      \"checks\": [\n        {\n          \"step\": \"fill\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"click\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"wait 700ms\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"expectText\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"expectEnabled\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"screenshot\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        }\n      ],\n      \"trace\": \"D:\\\\PitCrew G4\\\\.pitcrew\\\\browser-acceptance\\\\fixed-1\\\\trace.zip\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "id": "migration-upgrade",
+      "category": "migrations",
+      "description": "Reapplying migrations without a version guard fails on a populated database.",
+      "fixture": "fixtures/migration-upgrade",
+      "command": {
+        "executable": "node",
+        "args": ["--experimental-sqlite", "repro.mjs"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "repeat migration failed: table users already exists\n",
+      "stderr": "(node:19804) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "dependency-boundaries",
+      "category": "dependencies",
+      "description": "Forbidden dependency edges stay absent from workspace manifests and imports.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "id": "environment-failure-handling",
+      "category": "environment failures",
+      "description": "Sandbox process failures, cancellation and output limits are covered.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": [
+          "--experimental-sqlite",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "tests/security.test.ts"
+        ]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.4 \u001b[39m\u001b[90mD:/PitCrew G4\u001b[39m\n\n \u001b[32m✓\u001b[39m tests/security.test.ts \u001b[2m(\u001b[22m\u001b[2m29 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1013\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m paths and bounded process execution\u001b[2m > \u001b[22mterminates huge output \u001b[33m 359\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m paths and bounded process execution\u001b[2m > \u001b[22mcancels the process tree \u001b[33m 368\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m29 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:49:23\n\u001b[2m   Duration \u001b[22m 2.78s\u001b[2m (transform 368ms, setup 0ms, collect 900ms, tests 1.01s, environment 0ms, prepare 285ms)\u001b[22m\n\n",
+      "stderr": "(node:2604) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    }
+  ]
+}

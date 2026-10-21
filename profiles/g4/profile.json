@@ -1,0 +1,38 @@
+{
+  "provider": {
+    "type": "codex",
+    "executable": "codex"
+  },
+  "routing": {
+    "profile": "manual",
+    "providers": [
+      {
+        "id": "competition-implementer",
+        "provider": {
+          "type": "codex",
+          "executable": "codex"
+        },
+        "roles": ["implementer", "debugger"],
+        "enabled": true,
+        "local": false,
+        "highRisk": false,
+        "tools": true,
+        "maxContextChars": 120000
+      }
+    ]
+  },
+  "execution": {
+    "allowReducedIsolation": false,
+    "dockerExecutable": "docker",
+    "image": "node:22-bookworm-slim"
+  },
+  "referee": {
+    "executable": "openpitstop",
+    "args": [],
+    "requiredLayers": ["stack", "architecture", "baseline"]
+  },
+  "budget": {
+    "maxModelCalls": 6,
+    "timeoutMs": 900000
+  }
+}

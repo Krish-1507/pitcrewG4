@@ -1,0 +1,17 @@
+{
+  "name": "checkout recovers from a seeded 500",
+  "url": "__URL__",
+  "steps": [
+    { "action": "fill", "target": { "label": "Amount" }, "value": "42" },
+    { "action": "click", "target": { "name": "Pay" } },
+    { "action": "wait", "ms": 700 },
+    {
+      "action": "expectText",
+      "target": { "selector": "#status" },
+      "text": "Payment failed"
+    },
+    { "action": "expectEnabled", "target": { "name": "Pay" }, "enabled": true },
+    { "action": "screenshot", "name": "checkout" }
+  ],
+  "accessibility": true
+}

@@ -1,0 +1,6 @@
+{
+  "name": "architecture",
+  "description": "Map module boundaries and dependency direction before proposing structural change.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read"]
+}

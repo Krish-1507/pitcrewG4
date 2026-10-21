@@ -1,0 +1,6 @@
+{
+  "name": "accessibility",
+  "description": "Audit keyboard, semantic and contrast behavior with observable evidence.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "browser:qa"]
+}

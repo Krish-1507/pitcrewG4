@@ -1,0 +1,6 @@
+{
+  "name": "documentation",
+  "description": "Write documentation that matches observed behavior and stated limitations.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "filesystem:write"]
+}

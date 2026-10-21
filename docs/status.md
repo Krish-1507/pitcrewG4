@@ -1,20 +1,29 @@
 # Status
 
-Current state: milestones 0 through 6 are complete. Milestones 7 through 15 are not. See [roadmap.md](roadmap.md).
+Current state: milestones 0 through 14 are implemented. Release hardening is in progress. See [roadmap.md](roadmap.md) and [validation/features-7-15.md](validation/features-7-15.md).
 
 ## Delivered
 
-| Milestone | Highlight                                                                                  | Date    |
-| --------- | ------------------------------------------------------------------------------------------ | ------- |
-| 0         | Monorepo, strict TypeScript, Vitest, Windows/Linux CI                                      | shipped |
-| 1         | CLI vertical slice: real candidate, real tests, OpenPitStop VERIFIED                       | shipped |
-| 2         | Pause/resume/cancel, approvals, durable event replay                                       | shipped |
-| 3         | Tree-sitter repository intelligence with source-linked facts                               | shipped |
-| 4         | Provider adapters, routing profiles, OS keychain                                           | shipped |
-| 5         | Bounded specialist roles (CEO, Scientist, Architect, Implementer, Debugger, Test Engineer) | shipped |
-| 6         | Candidate identity and Arena: hypotheses, elimination, exact-digest selection              | shipped |
+| Milestone | Highlight                                                                                  | Date        |
+| --------- | ------------------------------------------------------------------------------------------ | ----------- |
+| 0         | Monorepo, strict TypeScript, Vitest, Windows/Linux CI                                      | shipped     |
+| 1         | CLI vertical slice: real candidate, real tests, OpenPitStop VERIFIED                       | shipped     |
+| 2         | Pause/resume/cancel, approvals, durable event replay                                       | shipped     |
+| 3         | Tree-sitter repository intelligence with source-linked facts                               | shipped     |
+| 4         | Provider adapters, routing profiles, OS keychain                                           | shipped     |
+| 5         | Bounded specialist roles (CEO, Scientist, Architect, Implementer, Debugger, Test Engineer) | shipped     |
+| 6         | Candidate identity and Arena: hypotheses, elimination, exact-digest selection              | shipped     |
+| 7         | Assumption Ledger and Blindspot Engine with verification debt                              | shipped     |
+| 8         | Five-view evidence-labelled Repo Story                                                     | shipped     |
+| 9         | Browser QA Lab with traces, seeded failures and axe audits                                 | shipped     |
+| 10        | Mission Control served by the daemon                                                       | shipped     |
+| 11        | Merge certificate and append-only replay                                                   | shipped     |
+| 12        | Nine validated skills with permission requests only                                        | shipped     |
+| 13        | Ten-category benchmark harness with published raw results                                  | shipped     |
+| 14        | Competition profile `profiles/g4/`                                                         | shipped     |
+| 15        | Release hardening documentation and release-check script                                   | in progress |
 
-The deterministic suite currently passes 73 tests.
+The deterministic suite currently passes 90 tests across 15 files.
 
 ## Live evidence
 
@@ -22,11 +31,18 @@ Milestone 1 produced a full P0 acceptance: an authenticated Codex CLI, a real is
 
 Milestone 6's hero fixture is a real duplicate-checkout race. The racy candidate is eliminated for failing the reproduction, a test-weakening candidate is eliminated, and the correct candidate survives and receives a strict OpenPitStop VERIFIED verdict with matching digest.
 
+Milestone 9's browser acceptance reproduces a seeded checkout recovery defect twice against the buggy page and verifies the fixed page with a passing check sequence and accessibility audit. Raw artifacts are written under `.pitcrew/browser-acceptance/`.
+
+Milestone 13's published raw result validates all ten fixture baselines. It does not claim a model comparison.
+
 ## Known limitations
 
-- Milestone 6 live evidence could not be re-recorded with a fresh model in this environment because the Codex CLI was unavailable; prior live runs remain the standing evidence.
+- Live model missions could not be re-recorded in this environment because the Codex CLI was unavailable; prior live runs remain the standing evidence.
+- The published benchmark results validate fixtures and harness behavior only; no model-backed contender was executed.
+- Browser QA depends on a locally installed Chrome or Edge. Observe mode requires a desktop session.
 - The referee always runs on the host; a containerized referee is not implemented yet.
-- This is not a production release or a finished desktop application.
+- macOS clean-machine installation has not been verified locally; CI covers Windows and Linux.
+- Mission Control is a local web interface, not a packaged native desktop application.
 
 ## CI
 

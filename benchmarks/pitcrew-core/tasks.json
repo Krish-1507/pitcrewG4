@@ -1,0 +1,114 @@
+{
+  "tasks": [
+    {
+      "id": "simple-bug",
+      "category": "simple bug",
+      "description": "A failing unit test must fail on the baseline until the defect is fixed.",
+      "fixture": "fixtures/failing-test",
+      "command": { "executable": "node", "args": ["--test"] },
+      "expectedBaselineExit": 1
+    },
+    {
+      "id": "multi-file-feature",
+      "category": "multi-file feature",
+      "description": "Visible tests across modules pass on the baseline fixture.",
+      "fixture": "fixtures/multi-module",
+      "command": { "executable": "node", "args": ["--test"] },
+      "expectedBaselineExit": 1
+    },
+    {
+      "id": "architecture-boundaries",
+      "category": "architecture boundaries",
+      "description": "Import boundaries hold for every workspace package.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0
+    },
+    {
+      "id": "authz-coverage",
+      "category": "authz",
+      "description": "The strong verifier rejects anonymous and wrong-role callers.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/strong.test.js"]
+      },
+      "expectedBaselineExit": 0
+    },
+    {
+      "id": "concurrency-race",
+      "category": "concurrency",
+      "description": "Concurrent duplicate checkouts must reproduce duplicate orders.",
+      "fixture": "fixtures/checkout-race",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/repro-concurrency.mjs", "auto", "benchmark-key", "6"]
+      },
+      "expectedBaselineExit": 1
+    },
+    {
+      "id": "visible-test-blindspot",
+      "category": "visible-test blindspot",
+      "description": "The weak suite passes even though the auth hole is unprotected.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/weak.test.js"]
+      },
+      "expectedBaselineExit": 0
+    },
+    {
+      "id": "browser-recovery",
+      "category": "browser recovery",
+      "description": "A seeded checkout recovery defect is reproduced and a fixed page passes.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/browser-acceptance.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "requiresBrowser": true
+    },
+    {
+      "id": "migration-upgrade",
+      "category": "migrations",
+      "description": "Reapplying migrations without a version guard fails on a populated database.",
+      "fixture": "fixtures/migration-upgrade",
+      "command": {
+        "executable": "node",
+        "args": ["--experimental-sqlite", "repro.mjs"]
+      },
+      "expectedBaselineExit": 1
+    },
+    {
+      "id": "dependency-boundaries",
+      "category": "dependencies",
+      "description": "Forbidden dependency edges stay absent from workspace manifests and imports.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0
+    },
+    {
+      "id": "environment-failure-handling",
+      "category": "environment failures",
+      "description": "Sandbox process failures, cancellation and output limits are covered.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": [
+          "--experimental-sqlite",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "tests/security.test.ts"
+        ]
+      },
+      "expectedBaselineExit": 0
+    }
+  ]
+}

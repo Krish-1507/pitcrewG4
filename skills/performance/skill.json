@@ -1,0 +1,6 @@
+{
+  "name": "performance",
+  "description": "Measure a workload before and after a change with a repeatable command.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "sandbox:execute"]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "blindspot-weak-suite-fixture",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test"
+  }
+}

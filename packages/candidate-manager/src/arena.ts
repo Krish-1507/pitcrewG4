@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import { z } from 'zod';
 import { PitCrewError } from '@pitcrew/protocol';
 import type {
@@ -338,11 +339,27 @@ async function disposeWorktree(
   branch: string,
   signal: AbortSignal,
 ): Promise<void> {
-  await arenaGit(
-    root,
-    ['worktree', 'remove', '--force', destination],
-    signal,
-  ).catch(() => undefined);
+  const normalized = destination.replace(/\\/g, '/');
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await arenaGit(
+      root,
+      ['worktree', 'remove', '--force', destination],
+      signal,
+    ).catch(() => undefined);
+    const listed = await arenaGit(
+      root,
+      ['worktree', 'list', '--porcelain'],
+      signal,
+    ).catch(() => '');
+    if (!listed.includes(normalized)) break;
+    await rm(destination, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+    }).catch(() => undefined);
+    await arenaGit(root, ['worktree', 'prune'], signal).catch(() => undefined);
+    await new Promise((done) => setTimeout(done, 100 * (attempt + 1)));
+  }
   await arenaGit(root, ['branch', '-D', branch], signal).catch(() => undefined);
 }
 

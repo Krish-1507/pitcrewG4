@@ -162,6 +162,74 @@ export const normalizedVerificationSchema = z
 export type NormalizedVerification = z.infer<
   typeof normalizedVerificationSchema
 >;
+export const mutationCategorySchema = z.enum([
+  'authz',
+  'idempotency',
+  'permission',
+  'validation',
+  'architecture',
+  'error-handling',
+]);
+export type MutationCategory = z.infer<typeof mutationCategorySchema>;
+export const blindspotMutationSchema = z
+  .object({
+    id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
+    category: mutationCategorySchema,
+    description: z.string().min(1).max(1000),
+    path: z.string().min(1).max(500),
+    find: z.string().min(1).max(20000),
+    replace: z.string().max(20000),
+  })
+  .strict();
+export type BlindspotMutation = z.infer<typeof blindspotMutationSchema>;
+export const blindspotAssumptionSchema = z
+  .object({
+    id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
+    statement: z.string().min(1).max(1000),
+    mutationId: z.string().nullable().default(null),
+    declaredProtected: z.boolean().default(false),
+    volatile: z.boolean().default(false),
+  })
+  .strict();
+export type BlindspotAssumption = z.infer<typeof blindspotAssumptionSchema>;
+export const assumptionStateSchema = z.enum([
+  'PROTECTED',
+  'INFERRED',
+  'UNPROTECTED',
+  'EXTERNAL_VOLATILE',
+  'CONTRADICTED',
+]);
+export type AssumptionState = z.infer<typeof assumptionStateSchema>;
+export const blindspotFindingSchema = z
+  .object({
+    mutationId: z.string(),
+    category: mutationCategorySchema,
+    description: z.string(),
+    path: z.string(),
+    outcome: z.enum(['killed', 'survived']),
+    verifierExitCode: z.number().nullable(),
+    detail: z.string().max(2000),
+  })
+  .strict();
+export type BlindspotFinding = z.infer<typeof blindspotFindingSchema>;
+export const assumptionEntrySchema = z
+  .object({
+    id: z.string(),
+    statement: z.string(),
+    state: assumptionStateSchema,
+    mutationId: z.string().nullable(),
+  })
+  .strict();
+export type AssumptionEntry = z.infer<typeof assumptionEntrySchema>;
+export const blindspotReportSchema = z
+  .object({
+    candidateDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    findings: z.array(blindspotFindingSchema),
+    ledger: z.array(assumptionEntrySchema),
+    verificationDebt: z.array(z.string()),
+  })
+  .strict();
+export type BlindspotReport = z.infer<typeof blindspotReportSchema>;
 export const eventSchema = z.discriminatedUnion('type', [
   z
     .object({
@@ -310,6 +378,60 @@ export const missionSchema = z.object({
   evidenceState: z.enum(['CURRENT', 'STALE', 'UNAVAILABLE']).optional(),
 });
 export type Mission = z.infer<typeof missionSchema>;
+export const evidenceEntrySchema = z
+  .object({
+    label: z.string(),
+    artifact: z.string(),
+    digest: z.string(),
+    exitCode: z.number().nullable(),
+  })
+  .strict();
+export type EvidenceEntry = z.infer<typeof evidenceEntrySchema>;
+export const mergeCertificateSchema = z
+  .object({
+    missionId: z.string(),
+    request: z.string(),
+    repo: z.string(),
+    state: stateSchema,
+    verdict: verdictSchema,
+    mergeEligible: z.boolean(),
+    selected: z
+      .object({
+        candidateId: z.string(),
+        digest: z.string().regex(/^[a-f0-9]{64}$/),
+        reason: z.string(),
+      })
+      .strict()
+      .nullable(),
+    referee: z
+      .object({
+        verdict: verdictSchema,
+        digest: z.string(),
+        artifact: z.string(),
+        message: z.string(),
+      })
+      .strict()
+      .nullable(),
+    approvals: z.array(
+      z
+        .object({ id: z.string(), hash: z.string(), approved: z.boolean() })
+        .strict(),
+    ),
+    eliminated: z.array(
+      z
+        .object({
+          candidateId: z.string(),
+          digest: z.string(),
+          reason: z.string(),
+        })
+        .strict(),
+    ),
+    evidenceManifest: z.array(evidenceEntrySchema),
+    limitations: z.array(z.string()),
+    generatedAt: z.number(),
+  })
+  .strict();
+export type MergeCertificate = z.infer<typeof mergeCertificateSchema>;
 export const errorCodeSchema = z.enum([
   'CONFIGURATION',
   'POLICY_DENIED',
@@ -390,6 +512,33 @@ export const repositoryGraphSchema = z
   })
   .strict();
 export type RepositoryGraph = z.infer<typeof repositoryGraphSchema>;
+export const storyViewSchema = z.enum([
+  'product',
+  'system',
+  'request-journey',
+  'change-impact',
+  'trust',
+]);
+export type StoryView = z.infer<typeof storyViewSchema>;
+export const storyItemSchema = z
+  .object({
+    view: storyViewSchema,
+    statement: z.string().min(1).max(500),
+    kind: z.enum(['observed', 'inferred', 'user_declared']),
+    evidence: z.array(sourceEvidenceSchema).min(1).max(8),
+  })
+  .strict();
+export type StoryItem = z.infer<typeof storyItemSchema>;
+export const repoStorySchema = z
+  .object({
+    root: z.string(),
+    head: z.string(),
+    boundaryDigest: z.string(),
+    items: z.array(storyItemSchema),
+    limitations: z.array(z.string()),
+  })
+  .strict();
+export type RepoStory = z.infer<typeof repoStorySchema>;
 export const registeredProviderSchema = z
   .object({
     id: z.string().regex(/^prov_[a-f0-9-]+$/),

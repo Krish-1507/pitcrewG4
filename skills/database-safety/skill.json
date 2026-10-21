@@ -1,0 +1,6 @@
+{
+  "name": "database-safety",
+  "description": "Protect persisted evidence and schema changes from loss or corruption.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "sandbox:execute"]
+}

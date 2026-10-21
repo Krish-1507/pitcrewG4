@@ -297,3 +297,5 @@ export class EvidenceStore {
     this.db.close();
   }
 }
+
+export { buildMergeCertificate } from './certificate.js';

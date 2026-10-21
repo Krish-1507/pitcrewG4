@@ -1,0 +1,6 @@
+{
+  "name": "debugging",
+  "description": "Reproduce a failure before changing code, then narrow it with evidence.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "sandbox:execute"]
+}

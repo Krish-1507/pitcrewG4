@@ -6,6 +6,18 @@ Trust is the point. PitCrew never edits your working tree. Every candidate chang
 
 This is a development project, not a finished product. See [docs/roadmap.md](docs/roadmap.md) for what is done and what is next.
 
+## Capabilities
+
+- Evidence-linked repository intelligence with Product, System, Request Journey, Change Impact and Trust views.
+- An Assumption Ledger and Blindspot Engine that mutate disposable candidates to expose verification debt.
+- A candidate Arena with independent hypotheses, test-weakening detection, elimination and exact-digest selection.
+- Browser QA against authorized loopback targets with semantic locators, traces, screenshots, console and network capture, seeded network failures and axe accessibility audits.
+- Mission Control: a local web interface served by the daemon with real mission events, approvals, arena state, repo story, evidence and provider status.
+- Merge certificates that bind a selected candidate, its digest, the independent verdict, approvals, eliminations and evidence manifest.
+- Nine versioned skills with manifests that request permissions and never grant them.
+- A deterministic benchmark harness and published raw fixtures results.
+- A competition profile under `profiles/g4/`.
+
 ## Requirements
 
 - Node.js 22.13 or newer
@@ -52,7 +64,15 @@ The CLI starts its daemon, plans the work, makes a candidate, and prints the dif
 node apps/cli/dist/index.js --config /path/to/config.json --repo /path/to/your-repo --state /path/to/state doctor
 ```
 
-`doctor` checks every executable and service it will need. `open` inspects a repository read-only, `replay` shows a past mission, and `diff` shows a candidate.
+`doctor` checks every executable and service it will need. `open` inspects a repository read-only, `replay` shows a past mission, `diff` shows a candidate, `certificate` prints the merge certificate, `story` renders the repo story and `ui` prints the Mission Control URL.
+
+Browser QA runs through the daemon against a loopback target:
+
+```sh
+node scripts/browser-acceptance.mjs
+```
+
+The acceptance script reproduces a seeded checkout recovery defect twice and verifies the fixed page.
 
 Ollama and other OpenAI-compatible providers work too, and API keys can live in your OS keychain. Full configuration, provider options and safety notes are in [docs/quickstart.md](docs/quickstart.md) and [docs/providers.md](docs/providers.md).
 
@@ -72,6 +92,14 @@ pnpm test
 pnpm typecheck
 pnpm lint
 pnpm format:check
+pnpm build
+node scripts/release-check.mjs
+```
+
+Benchmark fixtures:
+
+```sh
+node benchmarks/pitcrew-core/run.mjs
 ```
 
 The live acceptance script `node scripts/live-acceptance.mjs` runs a real end-to-end mission with the real Codex CLI and a really failing fixture. It costs real model calls, so it is separate from the regular test suite.
