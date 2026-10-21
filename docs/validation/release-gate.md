@@ -27,7 +27,7 @@ node_modules/.bin/openpitstop scan
 node_modules/.bin/openpitstop verify
 ```
 
-Result for source commit `c719a6d3327b20f2357d40cac0b4f00bdb4d71b0`:
+Result for source commit `441e4e3728dca2e6600e4f5f30b63c6f436bc513`:
 
 - verdict: OK, exit code 0;
 - integrity: CLEAN, 0 confirmed, 0 suspicious;

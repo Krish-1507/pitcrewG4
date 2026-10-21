@@ -59,7 +59,7 @@ A competition-ready profile under `profiles/g4/` that maps Context Packs, candid
 
 Clean-machine verification across Windows, Linux and macOS, with and without Docker, local models, OpenPitStop present or missing, interrupted missions, dirty trees, large repos and monorepos. Missing OpenPitStop yields NOT_PROVEN, never a pass.
 
-Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment.
+Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment. OpenPitStop strict verification of commit `441e4e3` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 92/92 tests.
 
 ## Release gate
 
