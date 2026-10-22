@@ -27,14 +27,16 @@ node_modules/.bin/openpitstop scan
 node_modules/.bin/openpitstop verify
 ```
 
-Result for source commit `441e4e3728dca2e6600e4f5f30b63c6f436bc513`:
+Result for source commit `bfce57e9081c8c72b50bbaa6f33d35be68c781af`:
 
 - verdict: OK, exit code 0;
 - integrity: CLEAN, 0 confirmed, 0 suspicious;
 - honesty: 100, TRUSTWORTHY;
 - tests: 92/92 passed;
 - candidate binding: clean working tree;
-- scan risk: Low; 21 medium heuristic findings remain (fixture and generated-markup patterns), with no confirmed exploitable finding and no verification-integrity finding.
+- scan risk: Medium; 21 medium heuristic findings remain (fixture and generated-markup patterns), with no confirmed exploitable finding and no verification-integrity finding.
+
+This document was updated in a later documentation-only commit after the verified source commit; no source file differs.
 
 Raw referee records are written to `.pitstop/verify-*.json` and `.pitstop/scan-latest.json`. These are local evidence artifacts and are not committed.
 
