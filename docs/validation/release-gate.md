@@ -27,14 +27,16 @@ node_modules/.bin/openpitstop scan
 node_modules/.bin/openpitstop verify
 ```
 
-Result for source commit `bfce57e9081c8c72b50bbaa6f33d35be68c781af`:
+Result for source commit `75b646d3e2095062d1fd6b90715cee64614ede34`:
 
 - verdict: OK, exit code 0;
 - integrity: CLEAN, 0 confirmed, 0 suspicious;
 - honesty: 100, TRUSTWORTHY;
 - tests: 92/92 passed;
 - candidate binding: clean working tree;
-- scan risk: Medium; 21 medium heuristic findings remain (fixture and generated-markup patterns), with no confirmed exploitable finding and no verification-integrity finding.
+- scan risk: Low; 21 medium heuristic findings remain (fixture and generated-markup patterns), with no confirmed exploitable finding and no verification-integrity finding.
+
+CI is green on `ubuntu-latest` and `windows-latest` for this commit (build, test, typecheck, lint, format). Two timing-sensitive tests were hardened without weakening their assertions: the process-tree cancellation test now allows bounded reaping time, and the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path.
 
 This document was updated in a later documentation-only commit after the verified source commit; no source file differs.
 
