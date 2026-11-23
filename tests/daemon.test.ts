@@ -170,7 +170,11 @@ it('runs controlled blindspot mutations only inside a disposable worktree', asyn
     await mkdtemp(join(tmpdir(), 'pitcrew-blindspot-state-')),
     configSchema.parse({
       provider: { type: 'codex', executable: 'missing-codex' },
-      execution: { allowReducedIsolation: true },
+      execution: {
+        allowReducedIsolation: true,
+        dockerExecutable: 'pitcrew-missing-docker',
+        image: 'node:22',
+      },
       referee: { executable: 'missing-referee' },
       test: { executable: 'node', args: ['--test', 'test/weak.test.js'] },
     }),
