@@ -43,7 +43,7 @@ Remaining heuristic findings include two UI render sinks at `apps/desktop/src/ap
 
 Three timing-sensitive checks were hardened in an earlier source commit without weakening their assertions: the process-tree cancellation test allows bounded reaping time; the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path; and its disposable-worktree check retries a transient `git worktree list` lock before asserting exactly one worktree.
 
-CI status for commit `1c21762` is not yet recorded here; it is expected to run on push. This document is updated in a later documentation-only commit after the verified source commit; no source file differs.
+CI run `45401268345` is green on the pushed branch containing source commit `1c21762` (build, test, typecheck, lint, format). This document is updated in a later documentation-only commit after the verified source commit; no source file differs.
 
 Raw referee records are written to `.pitstop/verify-*.json` and `.pitstop/scan-latest.json`. These are local evidence artifacts and are not committed.
 
