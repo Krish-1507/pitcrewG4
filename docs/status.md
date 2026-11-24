@@ -25,7 +25,7 @@ Current state: milestones 0 through 15 are implemented. Release-gate evidence is
 
 A user-profile install path is implemented in `install.ps1` and `install.sh`: it builds the workspace, packages the CLI, installs into a user-owned prefix, creates a Desktop launcher, and changes only user `PATH` entries. The npm artifact is prepared as `@pitcrew/cli`; publication is pending, so the source installer is the supported path today.
 
-All 20 workspace packages build. The deterministic suite passes 93 tests across 16 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification on a clean source commit is recorded in [validation/release-gate.md](validation/release-gate.md); these newer changes are not part of that evidence until a new clean commit is verified.
+All 20 workspace packages build. The deterministic suite passes 93 tests across 16 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification of clean source commit `1c21762` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 93/93 tests; evidence is recorded in [validation/release-gate.md](validation/release-gate.md).
 
 ## Modules
 
