@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { cp, mkdtemp } from 'node:fs/promises';
+import { cp, mkdtemp, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -59,6 +59,31 @@ it('authenticates loopback API and rejects browser origins and extra mutation fi
     expect(ui.status).toBe(200);
     expect(await ui.text()).toContain('PitCrew Mission Control');
     expect((await fetch(daemon.url + '/ui/app.js')).status).toBe(200);
+  } finally {
+    await daemon.close();
+  }
+});
+
+it('serves Mission Control from an explicit packaged UI root', async () => {
+  const config = configSchema.parse({
+    provider: { type: 'codex', executable: 'missing-codex' },
+    execution: {},
+    referee: { executable: 'missing-referee' },
+  });
+  const uiRoot = await mkdtemp(join(tmpdir(), 'pitcrew-ui-'));
+  await writeFile(
+    join(uiRoot, 'index.html'),
+    '<title>Packaged Mission Control</title>',
+  );
+  const daemon = await startDaemon(
+    await mkdtemp(join(tmpdir(), 'pitcrew-api-ui-')),
+    config,
+    { uiRoot },
+  );
+  try {
+    const page = await fetch(daemon.url + '/');
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('Packaged Mission Control');
   } finally {
     await daemon.close();
   }

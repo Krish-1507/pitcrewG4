@@ -10,7 +10,7 @@ PitCrew is an early development build. The following limitations are current fac
 
 ## Test coverage
 
-- The deterministic suite is 92 tests in 16 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
+- The deterministic suite is 93 tests in 16 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
 - `orchestrator` full-mission behaviour is exercised by the live acceptance script, not CI.
 - `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test.
 - A live mission requires an installed, authenticated model provider.

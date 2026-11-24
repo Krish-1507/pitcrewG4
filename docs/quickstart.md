@@ -4,12 +4,28 @@ This page is the technical setup path. For the short version, see the [README](.
 
 ## 1. Install
 
+From a checkout, use the user-profile installer:
+
+```powershell
+.\install.ps1
+```
+
+```sh
+./install.sh
+```
+
+The installer builds the CLI and Mission Control assets, installs into `%USERPROFILE%\PitCrew` (or `$HOME/PitCrew`), creates a Desktop launcher, and adds only user `PATH` entries. It does not request admin rights.
+
+For a manual source setup:
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm build
+pnpm package:cli
+npm install -g ./release/pitcrew-cli-0.1.0-dev.tgz
 ```
 
-Node 22.13+, Git and pnpm 11.19.0 are required. Keep the pinned `openpitstop` development dependency installed; PitCrew runs it as a separate process and never imports it.
+Node 22.13+, Git and pnpm 11.19.0 are required. The packaged CLI includes the pinned `openpitstop` runtime dependency; PitCrew runs it as a separate process and never imports it.
 
 ## 2. Authenticate a model yourself
 
@@ -21,24 +37,24 @@ PitCrew never reads or stores your model credentials.
 ## 3. Generate a trusted config
 
 ```sh
-pnpm onboard --repo .
+pitcrew setup
 ```
 
-This writes `.pitcrew/config.json` with:
+This writes `~/.pitcrew/config.json` (or `$PITCREW_HOME/config.json`) with:
 
-- the Codex provider by default;
-- the current Node executable and the pinned `node_modules/openpitstop/dist/cli.js` as the referee;
+- the provider and model you choose;
+- the current Node executable and the installed `openpitstop/dist/cli.js` as the referee;
 - `stack`, `architecture` and `baseline` referee layers;
 - `node --test` as the project test command;
 - a four-call, ten-minute budget;
-- reduced isolation **disabled**.
+- reduced isolation **disabled** unless you opt in.
 
-The generated file is validated with the real schema before it is written. Edit it if your project does not use `node --test`.
+The generated file is validated with the real schema before it is written. Use `--config` and `--state` when you want a checkout-local configuration instead.
 
 If Docker is unavailable, opt in to host execution explicitly:
 
 ```sh
-pnpm onboard --repo . --reduced-isolation
+pitcrew setup --reduced-isolation --force
 ```
 
 Reduced isolation provides Git isolation, not process or network containment. Keep it disabled for untrusted repositories. With Docker available, ordinary test commands run in a restricted, network-disabled container. The referee still runs on the host; a containerized referee is not implemented.
@@ -46,13 +62,13 @@ Reduced isolation provides Git isolation, not process or network containment. Ke
 ## 4. Check, then run
 
 ```sh
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . "fix the failing test"
+pitcrew doctor
+pitcrew --repo . "fix the failing test"
 ```
 
 `doctor` reports the real state of Git, Docker, OpenPitStop and the model executable.
 
-Keep `--config` and `--state` outside the repository you are changing. The examples above are safe because `.pitcrew/` is ignored in this checkout; for another repository, run from here and pass `--repo ../my-app`.
+Config and state default to the user profile, outside the repository being changed. Use `--config`/`--state` only when you need the older checkout-local workflow. The source `pnpm onboard` and `pnpm pitcrew --config ...` path remains available.
 
 ## Configuration
 
@@ -90,14 +106,14 @@ Omit `apiKeyEnv` for keyless loopback endpoints. Never put the key itself in JSO
 ## Mission Control
 
 ```sh
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew ui
+pitcrew app
 ```
 
-Open the printed URL. The bearer token travels in the URL fragment and is kept in the browser session. Press `Ctrl+C` to stop the daemon. Cross-origin API requests are rejected.
+`app` opens the printed URL in your browser. Use `pitcrew ui` to print the URL and wait without opening a browser. The bearer token travels in the URL fragment and is kept in the browser session. Press `Ctrl+C` to stop the daemon. Cross-origin API requests are rejected.
 
 ## Inspection
 
-Use the same `--config` and `--state` arguments with:
+Commands use the default user configuration and state. Use `--config`/`--state` to override them.
 
 - `doctor`: actual executable and service checks.
 - `open`: read-only Git and source inspection.

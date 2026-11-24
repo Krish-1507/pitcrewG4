@@ -1,95 +1,132 @@
 # PitCrew
 
-PitCrew is a local-first AI software engineering crew. You give it a task like "fix the failing test". It reads your repository, proposes a change on an isolated Git branch, runs your real tests, and reports success only when an independent referee agrees.
+PitCrew is a local-first AI software engineering crew. Give it a task like "fix the failing test" and it reads the repository, proposes a change on an isolated Git branch, runs your real tests, and reports success only when an independent referee agrees.
 
-Trust is the point:
+The central rule is simple: **PitCrew proposes and executes; OpenPitStop verifies.** They are separate programs. A model can never mark its own change `VERIFIED`, and missing evidence is rendered as `NOT_PROVEN`.
 
-- your working tree is never edited;
-- every candidate lives in its own Git worktree;
-- evidence is bound to the exact bytes it describes;
-- the OpenPitStop CLI — a separate program, never imported — issues the final verdict;
-- if no referee says PASS, PitCrew says `NOT_PROVEN`.
+## Why PitCrew
 
-PitCrew is early development software. Milestones 0 through 15 are implemented; Windows and Linux CI pass; a clean macOS installation is still `NOT_PROVEN`. See [docs/status.md](docs/status.md) and [docs/limitations.md](docs/limitations.md).
+| Concern                 | PitCrew                                                  | A plain agent loop             |
+| ----------------------- | -------------------------------------------------------- | ------------------------------ |
+| Your working tree       | Never edited; candidates run in disposable worktrees     | Often edits the live checkout  |
+| Final verdict           | Independent OpenPitStop process                          | The same model reports success |
+| Evidence                | Content-addressed and bound to the exact candidate bytes | Logs or a prose summary        |
+| Protected actions       | Policy decision plus an exact action hash                | Varies by tool                 |
+| Missing or stale checks | `NOT_PROVEN`, never a green pass                         | Frequently optimistic          |
+| Model choice            | Changes the route, not the verification standard         | May change what counts as done |
+
+PitCrew does not push, merge, or deploy as part of the automatic path. It is local-only, has no account system, and sends no telemetry.
 
 ## Requirements
 
 - Node.js 22.13 or newer
-- pnpm 11.19.0
 - Git
-- Docker, **or** explicit consent to reduced isolation for development
+- pnpm 11.19.0 for the source installer
+- Docker, **or** explicit consent to reduced isolation
 - A model: the official [Codex CLI](https://developers.openai.com/codex/) installed and authenticated by you, or a local/OpenAI-compatible endpoint such as Ollama
 
-The pinned `openpitstop` package is installed as a development dependency. PitCrew runs it as a separate process.
+The pinned `openpitstop` package is installed with PitCrew and run as a separate process.
 
-## Install and onboard
+## Install
 
-Run these from the PitCrew checkout.
+The supported one-command path today is the source bootstrap. It installs under your user profile, builds the CLI and Mission Control assets, installs the CLI into a user-owned prefix, creates a Desktop launcher, and adds only the user `PATH` entries.
+
+### Windows
+
+From a checkout:
+
+```powershell
+.\install.ps1
+```
+
+The installer defaults to `%USERPROFILE%\PitCrew`, creates a **PitCrew** Start Menu entry, and never requests admin rights. You can pass `-InstallRoot D:\PitCrew`, `-Source <checkout>`, or `-SkipPath`.
+
+### Linux and macOS
+
+From a checkout:
 
 ```sh
-pnpm install --frozen-lockfile
+./install.sh
+```
+
+The installer defaults to `$HOME/PitCrew`, creates `pitcrew-desktop`, and adds a Linux application entry where supported. On macOS this source path is `NOT_PROVEN`; CI covers Linux and Windows.
+
+The CLI is packaged as `@pitcrew/cli` for global npm distribution. Publication is pending, so the README does not claim an npm command that would currently fail. To install a locally built tarball:
+
+```sh
 pnpm build
-pnpm onboard --repo .
+pnpm package:cli
+npm install -g ./release/pitcrew-cli-0.1.0-dev.tgz
 ```
 
-`pnpm onboard` writes a trusted `.pitcrew/config.json`, points the referee at the pinned OpenPitStop entry point, validates the result against the real schema, and prints the commands to run next. It never prints or stores a secret value.
+## First-time setup
 
-Check the environment, then run a mission:
+The installer runs setup when no user config exists. You can rerun it at any time:
 
 ```sh
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . "fix the failing test"
+pitcrew setup
 ```
 
-`doctor` checks Git, Docker, OpenPitStop and your model executable. A missing referee or model is reported, not hidden.
+Setup asks for a provider, model, endpoint, and whether reduced isolation is allowed. It writes `~/.pitcrew/config.json` (or `PITCREW_HOME/config.json`) and references secrets by environment variable name only. It never writes a key value into the config.
 
-To work on a different repository, pass its path:
+Useful non-interactive forms:
 
 ```sh
-pnpm onboard --repo ../my-app
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo ../my-app "fix the failing test"
+pitcrew setup --provider codex --yes
+pitcrew setup --provider ollama --model llama3.1 --base-url http://127.0.0.1:11434/v1 --yes
+pitcrew setup --provider openai-compatible --model gpt-4o-mini --api-key-env OPENAI_API_KEY --yes
 ```
 
-Keep the config and state in the PitCrew checkout, outside the repository being changed.
-
-### No Docker
-
-The default config uses Docker. If `doctor` reports Docker unavailable, either install it or opt in to host execution explicitly:
+Then check the environment:
 
 ```sh
-pnpm onboard --repo . --reduced-isolation
+pitcrew doctor
 ```
 
-Reduced isolation runs the target's test/build commands on the host. It provides Git isolation, not process or network containment. Use it only for repositories you trust. See [docs/sandbox-security.md](docs/sandbox-security.md).
+`doctor` reports Git, Docker, OpenPitStop, and your model executable. Missing pieces are reported, not hidden. A missing referee means verification is `NOT_PROVEN`.
 
-### Ollama or another compatible endpoint
+## Run a mission
+
+Run from the repository you want PitCrew to work on:
 
 ```sh
-pnpm onboard --provider ollama --model llama3.1
-pnpm onboard --provider openai-compatible --base-url http://127.0.0.1:11434/v1 --model llama3.1
+cd ../my-app
+pitcrew "fix the failing test"
 ```
 
-Add `--api-key-env NAME` to reference an environment variable. Never put the key itself in JSON. Details: [docs/providers.md](docs/providers.md).
+Config defaults to `~/.pitcrew/config.json`; mission state defaults to `~/.pitcrew/state`. Both can be overridden:
+
+```sh
+pitcrew --config .pitcrew/config.json --state .pitcrew --repo . "fix the failing test"
+```
+
+This keeps the old checkout-local workflow available without making it mandatory.
+
+Interactive missions accept `/pause`, `/resume`, and `/cancel`. A protected edit prints the exact proposal and action hash and requires typing `approve`; non-interactive clients reject it.
+
+Exit codes: `0` for `VERIFIED`, `1` for `BLOCKED`, `2` for `NOT_PROVEN` or `CANCELLED`.
 
 ## Mission Control
 
 ```sh
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew ui
+pitcrew app
 ```
 
-Open the printed `http://127.0.0.1:<port>/#token=...` URL, then press `Ctrl+C` in the terminal to stop the daemon. The token stays in the URL fragment and the browser session; API requests need it, cross-origin requests are rejected.
+`app` starts the local daemon, opens the printed `http://127.0.0.1:<port>/#token=...` URL in your browser, and keeps running until `Ctrl+C`. Use `pitcrew ui` to print the URL and wait without opening a browser.
 
-Mission Control shows real daemon events: mission state, approvals, candidate arena, repo story, browser lab, evidence and provider status. A missing referee verdict renders `NOT_PROVEN`; no progress is invented.
+Mission Control shows real daemon events: mission state, approvals, candidate arena, repo story, browser lab, evidence, and provider status. A missing referee verdict renders `NOT_PROVEN`; no progress is invented.
+
+The token stays in the URL fragment and browser session. API requests require it, and cross-origin requests are rejected.
 
 ## Commands
 
-All commands accept the same `--config`, `--state` and `--repo` flags shown above.
-
 | Command                        | What it does                                               |
 | ------------------------------ | ---------------------------------------------------------- |
+| `setup`                        | Write or replace the trusted user configuration            |
 | `doctor`                       | Check required executables and services                    |
-| `open`                         | Inspect a repository read-only                             |
+| `app`                          | Serve Mission Control and open the browser                 |
 | `ui`                           | Serve Mission Control until `Ctrl+C`                       |
+| `open`                         | Inspect a repository read-only                             |
 | `replay <mis_id>`              | Print a persisted mission timeline                         |
 | `diff <mis_id>`                | Print a candidate diff and its evidence identity           |
 | `certificate <mis_id>`         | Print the merge certificate, or explain why none exists    |
@@ -98,20 +135,34 @@ All commands accept the same `--config`, `--state` and `--repo` flags shown abov
 | `blindspot --mutations <file>` | Run controlled mutations to expose verification debt       |
 | `"<mission>"`                  | Run a mission and stream events, approvals and the verdict |
 
-Exit codes: `0` for `VERIFIED`, `1` for `BLOCKED`, `2` for `NOT_PROVEN` or `CANCELLED`.
+## No Docker
 
-Interactive missions accept `/pause`, `/resume` and `/cancel`. A protected edit prints the exact proposal and action hash and requires typing `approve`; non-interactive clients reject it.
+The default config uses Docker. If `doctor` reports Docker unavailable, either install it or opt in explicitly:
+
+```sh
+pitcrew setup --reduced-isolation --force
+```
+
+Reduced isolation runs the target's test/build commands on the host. It provides Git isolation, not process or network containment. Use it only for repositories you trust. See [docs/sandbox-security.md](docs/sandbox-security.md).
 
 ## What happens during a mission
 
 1. The request becomes a plan with observable acceptance criteria.
-2. A bounded role (Architect, Implementer, Debugger, Test Engineer, and so on) proposes changes. Model output is untrusted data; policy decides what may run.
+2. A bounded role proposes changes. Model output is untrusted data; policy decides what may run.
 3. Changes are applied inside a disposable Git worktree. Your checkout is not touched.
 4. Your tests run against the candidate. A candidate that weakens a test to look green is rejected.
 5. If tests and policy pass, OpenPitStop independently re-verifies the candidate and issues the verdict.
 6. Every step is an append-only event, so a mission can be replayed and audited.
 
-A merge certificate binds the selected candidate, its digest, the verdict, approvals, eliminations and the evidence manifest. It does not push, merge or deploy anything.
+A merge certificate binds the selected candidate, its digest, the verdict, approvals, eliminations, and the evidence manifest. It does not push, merge, or deploy.
+
+## OpenPitStop
+
+OpenPitStop is the independent referee. It is a separate CLI, never imported into PitCrew:
+
+https://github.com/Krish-1507/OpenPitStop
+
+PitCrew does not duplicate the referee's logic. If OpenPitStop is unavailable, the result is `NOT_PROVEN`.
 
 ## Benchmarks
 
@@ -126,7 +177,7 @@ This is fixture-validation mode. It proves the harness reproduces each intended 
 
 ## Modules
 
-PitCrew is 17 packages and 3 apps. The deterministic suite passes 92 tests in 16 files. Coverage is not uniform: `orchestrator`, `apps/cli` and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
+PitCrew is 17 packages and 3 apps. The deterministic suite passes 93 tests in 16 files. Coverage is not uniform: `orchestrator`, `apps/cli`, and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
 
 | Area               | Packages                                   | Main evidence                                          |
 | ------------------ | ------------------------------------------ | ------------------------------------------------------ |
@@ -149,6 +200,13 @@ pnpm typecheck
 pnpm lint
 pnpm format:check
 node scripts/release-check.mjs
+```
+
+Build the installable CLI package and tarball:
+
+```sh
+pnpm package:cli
+pnpm pack:cli
 ```
 
 Independent referee, on a clean commit:
@@ -176,11 +234,12 @@ Neither acceptance script is part of the deterministic suite.
 ## Limitations
 
 - macOS clean-install verification is `NOT_PROVEN`; CI covers Windows and Linux.
+- npm publication of `@pitcrew/cli` is pending; the source installer is the supported path today.
 - Benchmark results are fixture validation only; no model contender was run.
 - Browser QA uses a local Chrome or Edge and does not download one.
 - The referee runs on the host; a containerized referee is not implemented.
-- Mission Control is a local web interface, not a packaged native app.
-- Production push, merge and deploy are outside the automatic path.
+- Mission Control is a local web interface with an optional launcher, not a packaged native `.app`/`.exe`.
+- Production push, merge, and deploy are outside the automatic path.
 
 Full list: [docs/limitations.md](docs/limitations.md). Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md).
 

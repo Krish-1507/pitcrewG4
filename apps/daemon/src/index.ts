@@ -47,6 +47,7 @@ export interface Daemon {
 export async function startDaemon(
   stateRoot: string,
   config: RuntimeConfig,
+  options: { uiRoot?: string } = {},
 ): Promise<Daemon> {
   const store = await EvidenceStore.open(stateRoot, configuredSecrets(config));
   const savedRouting = store.routing();
@@ -135,7 +136,9 @@ export async function startDaemon(
   server.requestTimeout = 30000;
   server.headersTimeout = 10000;
   const uiRoot = resolve(
-    fileURLToPath(new URL('../../desktop/dist/', import.meta.url)),
+    options.uiRoot ??
+      process.env.PITCREW_UI_ROOT ??
+      fileURLToPath(new URL('../../desktop/dist/', import.meta.url)),
   );
   function uiAsset(path: string): string | undefined {
     if (path === '/' || path === '/index.html')

@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-import { fork } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { fork, spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
-import { missionSchema } from '@pitcrew/protocol';
+import { validateConfig } from '@pitcrew/config';
+import { missionSchema, type ProviderConfig } from '@pitcrew/protocol';
 import { loadSkills } from '@pitcrew/skills';
 
 const options = parseArgs({
@@ -16,6 +20,14 @@ const options = parseArgs({
     state: { type: 'string' },
     repo: { type: 'string' },
     mutations: { type: 'string' },
+    provider: { type: 'string' },
+    model: { type: 'string' },
+    'base-url': { type: 'string' },
+    'api-key-env': { type: 'string' },
+    'reduced-isolation': { type: 'boolean' },
+    force: { type: 'boolean' },
+    yes: { type: 'boolean' },
+    'no-open': { type: 'boolean' },
     json: { type: 'boolean' },
     help: { type: 'boolean' },
   },
@@ -125,24 +137,219 @@ function styledLine(event: MissionEvent): string {
       return head;
   }
 }
+const homeDirectory = resolve(
+  process.env.PITCREW_HOME ?? join(homedir(), '.pitcrew'),
+);
+const defaultConfigPath = (): string => join(homeDirectory, 'config.json');
+
+function daemonEntry(): string {
+  const override = process.env.PITCREW_DAEMON;
+  if (override) return resolve(override);
+  const bundled = fileURLToPath(new URL('./daemon.js', import.meta.url));
+  if (existsSync(bundled)) return bundled;
+  return fileURLToPath(new URL('../../daemon/dist/main.js', import.meta.url));
+}
+
+function bundledUiRoot(): string | undefined {
+  const override = process.env.PITCREW_UI_ROOT;
+  if (override) return resolve(override);
+  const bundled = fileURLToPath(new URL('./desktop/', import.meta.url));
+  return existsSync(join(bundled, 'index.html')) ? bundled : undefined;
+}
+
+function refereePath(): string {
+  const require = createRequire(import.meta.url);
+  const candidates = ['openpitstop/dist/cli.js'];
+  for (const candidate of candidates) {
+    try {
+      const entry = require.resolve(candidate);
+      if (existsSync(entry)) return entry;
+    } catch {
+      // Try the next packaged location.
+    }
+  }
+  const local = resolve(
+    fileURLToPath(
+      new URL('../../../node_modules/openpitstop/dist/cli.js', import.meta.url),
+    ),
+  );
+  if (existsSync(local)) return local;
+  throw new Error(
+    'OpenPitStop is not installed. Reinstall PitCrew or run "pnpm referee" in a source checkout.',
+  );
+}
+
+function openBrowser(url: string): void {
+  const command =
+    process.platform === 'win32'
+      ? 'cmd.exe'
+      : process.platform === 'darwin'
+        ? 'open'
+        : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+  const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+  child.on('error', () => {
+    console.error('Could not open the browser. Open this URL manually:', url);
+  });
+  child.unref();
+}
+
+async function setupConfig(
+  configPath: string,
+  assumeYes: boolean,
+): Promise<void> {
+  const interactive = Boolean(process.stdin.isTTY) && !assumeYes;
+  const terminal = interactive
+    ? createInterface({ input: process.stdin, output: process.stdout })
+    : undefined;
+  const ask = async (question: string, fallback: string): Promise<string> => {
+    if (!terminal) return fallback;
+    const answer = (
+      await terminal.question(question + ' [' + fallback + ']: ')
+    ).trim();
+    return answer || fallback;
+  };
+  const askYes = async (question: string): Promise<boolean> => {
+    if (!terminal) return false;
+    const answer = (await terminal.question(question + ' [y/N]: '))
+      .trim()
+      .toLowerCase();
+    return answer === 'y' || answer === 'yes';
+  };
+  try {
+    if (existsSync(configPath) && !options.values.force) {
+      if (!terminal) {
+        console.error(
+          'Configuration already exists at ' +
+            configPath +
+            '. Pass --force to replace it.',
+        );
+        return;
+      }
+      const replace = await askYes(
+        'Configuration already exists at ' + configPath + '. Replace it?',
+      );
+      if (!replace) return;
+    }
+    const choice = (
+      options.values.provider ??
+      (await ask(
+        'Provider (codex, openai-compatible, ollama, freellmapi)',
+        'codex',
+      ))
+    ).toLowerCase();
+    let provider: ProviderConfig;
+    if (choice === 'codex') {
+      provider = {
+        type: 'codex',
+        executable: process.env.PITCREW_CODEX_EXECUTABLE ?? 'codex',
+        ...(options.values.model ? { model: options.values.model } : {}),
+      };
+    } else if (
+      choice === 'openai-compatible' ||
+      choice === 'ollama' ||
+      choice === 'freellmapi'
+    ) {
+      const baseUrl =
+        options.values['base-url'] ??
+        (await ask(
+          'Provider base URL',
+          choice === 'ollama'
+            ? 'http://127.0.0.1:11434/v1'
+            : 'http://127.0.0.1:8000/v1',
+        ));
+      const model =
+        options.values.model ??
+        (await ask('Model', choice === 'ollama' ? 'llama3.1' : 'gpt-4o-mini'));
+      const apiKeyEnv =
+        options.values['api-key-env'] ??
+        (choice === 'ollama'
+          ? undefined
+          : await ask('API key env var (blank for none)', ''));
+      provider = {
+        type: choice,
+        baseUrl,
+        model,
+        ...(apiKeyEnv ? { apiKeyEnv } : {}),
+      };
+    } else {
+      throw new Error('Unsupported provider: ' + choice);
+    }
+    const reduced =
+      options.values['reduced-isolation'] ??
+      (await askYes(
+        'Allow host execution when Docker is unavailable (reduced isolation)?',
+      ));
+    const config = validateConfig({
+      provider,
+      execution: {
+        allowReducedIsolation: reduced,
+        dockerExecutable: 'docker',
+        image: 'node:22-bookworm-slim',
+      },
+      referee: {
+        executable: process.execPath,
+        args: [refereePath()],
+        requiredLayers: ['stack', 'architecture', 'baseline'],
+      },
+      test: { executable: process.execPath, args: ['--test'] },
+    });
+    await mkdir(dirname(configPath), { recursive: true, mode: 0o700 });
+    await writeFile(configPath, JSON.stringify(config, null, 2) + '\n', {
+      mode: 0o600,
+    });
+    if (options.values.json) return;
+    console.log('Wrote ' + configPath);
+    console.log('Next: pitcrew app --repo .');
+    console.log('Check: pitcrew doctor --json');
+  } finally {
+    terminal?.close();
+  }
+}
+
+async function configuredPath(): Promise<string> {
+  if (options.values.config) {
+    const explicit = resolve(options.values.config);
+    if (!existsSync(explicit))
+      throw new Error('Configuration not found: ' + explicit);
+    return explicit;
+  }
+  const path = defaultConfigPath();
+  if (!existsSync(path)) {
+    if (!options.values.json)
+      console.log('No configuration found. Starting setup...');
+    await setupConfig(path, Boolean(options.values.yes));
+    if (!existsSync(path))
+      throw new Error('Setup did not create ' + path + '.');
+  }
+  return path;
+}
+
+const commandName = options.positionals[0];
 if (options.values.help || !options.positionals.length) {
   console.log(
-    'PITCREW\n\nUsage: pitcrew --config <trusted.json> [--repo .] [--state .pitcrew] "<mission>"\n       pitcrew --config <trusted.json> doctor | open | ui | replay <mission> | diff <mission> | certificate <mission>\n       pitcrew --config <trusted.json> story <project> | skills <dir> | blindspot --repo <path> --mutations <file.json>\n\nEvidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.\nDevelopment P0: explicit provider and execution configuration required.',
+    'PITCREW\n\nUsage: pitcrew setup [--provider codex] [--model <name>] [--yes] [--force]\n       pitcrew [--repo .] "<mission>"\n       pitcrew app [--repo .]\n       pitcrew doctor | open | ui | replay <mission> | diff <mission> | certificate <mission>\n       pitcrew story <project> | skills <dir> | blindspot --repo <path> --mutations <file.json>\n\nConfiguration defaults to ~/.pitcrew/config.json; state defaults to ~/.pitcrew/state.\nPass --config/--state to override. Evidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.',
+  );
+} else if (commandName === 'setup') {
+  await setupConfig(
+    options.values.config
+      ? resolve(options.values.config)
+      : defaultConfigPath(),
+    Boolean(options.values.yes),
   );
 } else {
-  if (!options.values.config)
-    throw new Error('Pass --config with a trusted runtime configuration file.');
-  const child = fork(
-    fileURLToPath(new URL('../../daemon/dist/main.js', import.meta.url)),
-    [
-      resolve(options.values.config),
-      resolve(options.values.state ?? '.pitcrew'),
-    ],
-    {
-      execArgv: ['--experimental-sqlite'],
-      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-    },
-  );
+  const configPath = await configuredPath();
+  const statePath = options.values.state
+    ? resolve(options.values.state)
+    : options.values.config
+      ? dirname(configPath)
+      : join(homeDirectory, 'state');
+  const uiRoot = bundledUiRoot();
+  const child = fork(daemonEntry(), [configPath, statePath], {
+    execArgv: ['--experimental-sqlite'],
+    stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
+    env: uiRoot ? { ...process.env, PITCREW_UI_ROOT: uiRoot } : process.env,
+  });
   const ready = z.object({
     type: z.literal('ready'),
     url: z.string().url(),
@@ -212,10 +419,10 @@ if (options.values.help || !options.positionals.length) {
     const command = options.positionals[0];
     if (command === 'doctor')
       console.log(JSON.stringify(await api('doctor'), null, 2));
-    else if (command === 'ui') {
-      console.log(
-        'Mission Control: ' + connection.url + '/#token=' + connection.token,
-      );
+    else if (command === 'ui' || command === 'app') {
+      const url = connection.url + '/#token=' + connection.token;
+      console.log('Mission Control: ' + url);
+      if (command === 'app' && !options.values['no-open']) openBrowser(url);
       console.log('Press Ctrl+C to stop the daemon.');
       await new Promise<void>((hold) => {
         const release = (): void => {
@@ -360,11 +567,7 @@ if (options.values.help || !options.positionals.length) {
             ];
             if (mission.candidate) {
               lines.push(dim(' candidate ') + mission.candidate.root);
-              lines.push(
-                dim(' inspect   ') +
-                  'pitcrew --config <config> --state <state> diff ' +
-                  mission.id,
-              );
+              lines.push(dim(' inspect   ') + 'pitcrew diff ' + mission.id);
             }
             console.log(lines.join('\n') + '\n');
           }

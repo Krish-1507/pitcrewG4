@@ -6,13 +6,26 @@ PitCrew requires Node 22.13.0 or newer because pnpm 11.19.0 requires it. Install
 
 ## `pitcrew` is not a recognized command
 
-PitCrew is not published as a global binary. Use the workspace script from the checkout:
+Run the source installer (`.\install.ps1` or `./install.sh`) and open a new terminal so the user `PATH` changes apply. The installer places the CLI and launcher under `%USERPROFILE%\PitCrew` or `$HOME/PitCrew`.
+
+If you are working inside the checkout without the installer:
 
 ```sh
-pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor
+pnpm build
+pnpm pitcrew doctor
 ```
 
-`pnpm onboard` and `pnpm pitcrew` read built `dist` output, so run `pnpm build` after installing or changing package source. If `.pitcrew/config.json` does not exist, run `pnpm onboard --repo .` first.
+`pnpm pitcrew` reads built `dist` output, so rebuild after changing source. With the installed CLI, the first command auto-creates setup or runs `pitcrew setup`.
+
+## Wrong config or state
+
+Config defaults to `~/.pitcrew/config.json`; mission state defaults to `~/.pitcrew/state`. Set `PITCREW_HOME` to move both, or pass `--config` and `--state` explicitly:
+
+```sh
+pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor
+```
+
+`pitcrew setup --force` replaces the default config after confirmation. It never writes a raw API key.
 
 ## Windows: `pipeline`/worktree cleanup warnings
 
@@ -20,9 +33,9 @@ Git worktree removal can briefly fail while a test process releases file handles
 
 ## Daemon refuses requests
 
-The daemon binds to `127.0.0.1` and requires the bearer token printed at startup. Mission Control receives the token through the URL fragment from `pnpm pitcrew ... ui`. Browser requests from another origin are rejected; do not paste the token into a third-party page. Open the full printed URL including `#token=...`; a bare `http://127.0.0.1:<port>/` loads static assets but API calls need the token.
+The daemon binds to `127.0.0.1` and requires the bearer token printed at startup. Mission Control receives the token through the URL fragment from `pitcrew app` or `pitcrew ui`. Browser requests from another origin are rejected; do not paste the token into a third-party page. Open the full printed URL including `#token=...`; a bare `http://127.0.0.1:<port>/` loads static assets but API calls need the token.
 
-`pnpm pitcrew ... ui` keeps running until you press `Ctrl+C` or the daemon exits. If the command returns immediately, check the printed error (for example a state directory lock held by another daemon) and that OpenPitStop and the model executable exist.
+`pitcrew app` and `pitcrew ui` keep running until you press `Ctrl+C` or the daemon exits. If the command returns immediately, check the printed error (for example a state directory lock held by another daemon) and that OpenPitStop and the model executable exist.
 
 ## Browser QA cannot find a browser
 

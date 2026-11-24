@@ -14,6 +14,9 @@ importers:
       '@types/node':
         specifier: 22.18.10
         version: 22.18.10
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       eslint:
         specifier: 9.37.0
         version: 9.37.0(supports-color@7.2.0)
@@ -38,6 +41,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@pitcrew/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@pitcrew/daemon':
         specifier: workspace:*
         version: link:../daemon
@@ -47,6 +53,9 @@ importers:
       '@pitcrew/skills':
         specifier: workspace:*
         version: link:../../packages/skills
+      openpitstop:
+        specifier: 1.10.0
+        version: 1.10.0
       zod:
         specifier: 3.25.76
         version: 3.25.76

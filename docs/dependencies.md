@@ -7,6 +7,8 @@ Runtime: Zod validates untrusted API, provider and configuration data.
 Development: TypeScript and Node types provide strict compilation; ESLint,
 typescript-eslint and Prettier enforce style; Vitest runs discriminating tests;
 Turborepo schedules workspace builds. pnpm manages the lockfile and workspaces.
+esbuild 0.28.2 (MIT, development) bundles the CLI and daemon into the global npm
+artifact so the published package has no `workspace:*` dependencies.
 
 No agent framework is used. Platform APIs provide HTTP, Git process launch,
 hashing, cancellation and filesystem operations.
@@ -19,3 +21,8 @@ Repository intelligence: @vscode/tree-sitter-wasm 0.3.1 (MIT, runtime) bundles t
 Model gateway: @napi-rs/keyring 2.1.0 (MIT, runtime) provides OS credential storage using prebuilt native bindings. Linux explicitly uses Secret Service without volatile fallback. Configuration: yaml 2.9.1 (ISC, runtime) parses the documented YAML format with aliases disabled and strict Zod validation.
 
 Browser lab: playwright-core 1.64.1 (Apache-2.0, runtime) drives a locally installed Chrome or Edge; no browser is downloaded by the package. axe-core 4.14.0 (MPL-2.0, runtime) is injected into pages for accessibility audits. Both are isolated in `packages/browser-lab`.
+
+Global CLI artifact: the packaged `@pitcrew/cli` declares `openpitstop` as an
+external runtime dependency so the referee stays a separate process, and keeps
+`playwright-core` and `@vscode/tree-sitter-wasm` external because they load
+local browser and grammar assets at runtime. Everything else is bundled.

@@ -1,6 +1,6 @@
 # Module audit
 
-PitCrew is 17 packages and 3 apps. All 20 build. The deterministic suite is 92 tests in 16 files.
+PitCrew is 17 packages and 3 apps. All 20 build. The deterministic suite is 93 tests in 16 files.
 
 This page records what each module does and which executable evidence exercises it. A label describes coverage in this repository; it is not a formal coverage percentage and it does not independently certify a module. The independent verdict is repo-level and comes only from OpenPitStop.
 

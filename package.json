@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/check-boundaries.mjs",
     "build": "turbo run build",
+    "package:cli": "pnpm build && node scripts/build-cli-package.mjs",
+    "pack:cli": "pnpm package:cli && npm pack ./release/cli --pack-destination ./release",
     "pitcrew": "node apps/cli/dist/index.js",
     "onboard": "node scripts/onboard.mjs",
     "bench": "node benchmarks/pitcrew-core/run.mjs",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@eslint/js": "9.37.0",
     "@types/node": "22.18.10",
+    "esbuild": "^0.28.2",
     "eslint": "9.37.0",
     "openpitstop": "1.10.0",
     "prettier": "3.6.2",
