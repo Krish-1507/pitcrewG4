@@ -27,16 +27,20 @@ node_modules/.bin/openpitstop scan
 node_modules/.bin/openpitstop verify
 ```
 
-Result for source commit `75b646d3e2095062d1fd6b90715cee64614ede34`:
+Result for source commit `fe84322567e392d0e985905e793410610e70ffa1` (Mission Control UI and CLI redesign, plus a test-stability hardening):
 
 - verdict: OK, exit code 0;
 - integrity: CLEAN, 0 confirmed, 0 suspicious;
 - honesty: 100, TRUSTWORTHY;
+- regression risk: Low, zero deltas in tests passed/failed, security and duplication;
 - tests: 92/92 passed;
-- candidate binding: clean working tree;
-- scan risk: Low; 21 medium heuristic findings remain (fixture and generated-markup patterns), with no confirmed exploitable finding and no verification-integrity finding.
+- candidate binding: clean working tree (tree digest `69f79329…`);
+- OpenPitStop score: 56/100 (C-), unchanged from the baseline scan;
+- scan risk: Low; 22 medium heuristic findings remain.
 
-CI is green on `ubuntu-latest` and `windows-latest` for this commit (build, test, typecheck, lint, format). Two timing-sensitive tests were hardened without weakening their assertions: the process-tree cancellation test now allows bounded reaping time, and the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path.
+The redesign changed only `apps/cli` and `apps/desktop`. Remaining heuristic findings include two UI render sinks at `apps/desktop/src/app.js:49` and `:135`; every interpolated value passes through the `esc()` helper, so they are recorded as known false positives rather than accepted exploits. The pre-existing clusters (file-upload size/type, direct DB access, fixture duplication) are unchanged from the baseline scan.
+
+CI is green on `ubuntu-latest` and `windows-latest` for this commit (build, test, typecheck, lint, format). Three timing-sensitive checks were hardened without weakening their assertions: the process-tree cancellation test allows bounded reaping time; the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path; and its disposable-worktree check retries a transient `git worktree list` lock before asserting exactly one worktree.
 
 This document was updated in a later documentation-only commit after the verified source commit; no source file differs.
 
