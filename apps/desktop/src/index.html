@@ -7,20 +7,38 @@
     <link rel="stylesheet" href="/ui/styles.css" />
   </head>
   <body>
-    <aside>
-      <h1>PitCrew</h1>
-      <p class="muted">Mission Control</p>
-      <nav id="nav">
-        <a href="#/home">Project home</a>
-        <a href="#/new">New mission</a>
-        <a href="#/missions">Mission control</a>
-        <a href="#/approvals">Approvals</a>
-        <a href="#/story">Repo story</a>
-        <a href="#/browser">Browser lab</a>
-        <a href="#/providers">Providers</a>
-      </nav>
-    </aside>
-    <main id="view" aria-live="polite"></main>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">PC</span>
+          <div class="brand-text">
+            <strong>PitCrew</strong>
+            <span class="muted">Mission Control</span>
+          </div>
+        </div>
+        <button id="new-mission" class="primary block">+ New mission</button>
+        <div class="side-section">
+          <span class="side-label">Missions</span>
+          <div id="mission-list" class="mission-list">
+            <span class="muted small">Loading…</span>
+          </div>
+        </div>
+        <div class="side-section">
+          <span class="side-label">Workspace</span>
+          <nav id="nav">
+            <a href="#/home">Project home</a>
+            <a href="#/approvals">Approvals</a>
+            <a href="#/story">Repo story</a>
+            <a href="#/browser">Browser lab</a>
+            <a href="#/providers">Providers</a>
+          </nav>
+        </div>
+        <div class="side-foot">
+          <span id="conn" class="conn">connecting…</span>
+        </div>
+      </aside>
+      <main id="view" aria-live="polite"></main>
+    </div>
     <script src="/ui/app.js" type="module"></script>
   </body>
 </html>

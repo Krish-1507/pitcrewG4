@@ -1,5 +1,7 @@
 const view = document.querySelector('#view');
 const nav = document.querySelector('#nav');
+const missionList = document.querySelector('#mission-list');
+const conn = document.querySelector('#conn');
 
 const hashParams = new URLSearchParams(location.hash.replace(/^#\/?/, ''));
 if (hashParams.get('token')) {
@@ -49,97 +51,138 @@ function render(html) {
 
 function failure(error) {
   render(
-    '<h2>Request failed</h2><p class="notice">' +
+    '<div class="thread"><h2>Request failed</h2><p class="notice">' +
       esc(error instanceof Error ? error.message : String(error)) +
-      '</p>',
+      '</p></div>',
   );
 }
 
-function stateBadge(state) {
+function badge(state) {
   return (
-    '<span class="badge state-' + esc(state) + '">' + esc(state) + '</span>'
+    '<span class="badge ' +
+    esc(state) +
+    '"><span class="dot ' +
+    esc(state) +
+    '"></span>' +
+    esc(state) +
+    '</span>'
   );
 }
 
-function eventSummary(event) {
+const EVENT_GLYPH = {
+  phase: '▸',
+  evidence: '◆',
+  referee: '⚖',
+  'approval.requested': '⚠',
+  'approval.resolved': '✓',
+  candidate: '◧',
+  'candidate.eliminated': '✕',
+  'candidate.selected': '★',
+  'arena.decision': '⑂',
+  delegation: '●',
+  model: '✦',
+  control: '⏯',
+};
+
+function eventMessage(event) {
   switch (event.type) {
     case 'phase':
-      return 'phase ' + event.state + ': ' + event.message;
+      return event.state + ' — ' + event.message;
     case 'evidence':
       return (
-        'evidence ' +
         event.label +
         ' (exit ' +
         (event.exitCode === null ? 'n/a' : event.exitCode) +
         ')'
       );
     case 'referee':
-      return 'OpenPitStop verdict ' + event.verdict + ': ' + event.message;
+      return 'OpenPitStop ' + event.verdict + ' — ' + event.message;
     case 'approval.requested':
-      return 'approval requested for ' + event.action + ': ' + event.reason;
+      return event.reason;
     case 'approval.resolved':
-      return 'approval ' + (event.approved ? 'approved' : 'rejected');
+      return event.approved ? 'approved' : 'rejected';
     case 'candidate':
-      return 'candidate ' + event.candidate.id + ' at ' + event.candidate.root;
+      return event.candidate.id + ' at ' + event.candidate.root;
     case 'candidate.eliminated':
-      return 'candidate eliminated: ' + event.reason;
+      return 'eliminated ' + event.candidateId + ' — ' + event.reason;
     case 'candidate.selected':
-      return 'candidate selected: ' + event.reason;
+      return 'selected ' + event.candidateId + ' — ' + event.reason;
     case 'arena.decision':
-      return (
-        'arena ' +
-        (event.branch ? 'branched' : 'single path') +
-        ': ' +
-        event.reason
-      );
+      return (event.branch ? 'branch' : 'single-path') + ' — ' + event.reason;
+    case 'delegation':
+      return event.role + ' · ' + event.status + ' · ' + event.mode;
     case 'model':
-      return 'model ' + event.provider + ' calls ' + event.calls;
-    case 'pause':
-      return 'mission ' + event.action;
-    case 'budget':
-      return 'budget ' + event.kind + ': ' + event.message;
-    case 'error':
-      return 'error ' + event.code + ': ' + event.message;
+      return event.provider + ' · ' + event.calls + ' call(s)';
+    case 'control':
+      return event.action;
     default:
       return event.type;
   }
 }
 
-function missionLink(mission) {
-  return (
-    '<a href="#/mission/' +
-    esc(mission.id) +
-    '"><code>' +
-    esc(mission.id) +
-    '</code></a> ' +
-    stateBadge(mission.state) +
-    '<br /><span class="muted">' +
-    esc(mission.request.slice(0, 120)) +
-    '</span>'
-  );
+function verdictClass(state) {
+  if (state === 'VERIFIED') return 'ok';
+  if (state === 'BLOCKED') return 'bad';
+  return 'open';
+}
+
+async function refreshSidebar(activeId) {
+  try {
+    const data = await api('missions');
+    conn.textContent = 'daemon · connected';
+    conn.className = 'conn ok';
+    const missions = data.missions ?? [];
+    missionList.innerHTML = missions.length
+      ? missions
+          .map(
+            (mission) =>
+              '<a class="mission-item' +
+              (mission.id === activeId ? ' active' : '') +
+              '" href="#/mission/' +
+              esc(mission.id) +
+              '"><span class="dot ' +
+              esc(mission.state) +
+              '"></span><span class="mi-body"><span class="mi-req">' +
+              esc((mission.request ?? '').slice(0, 80)) +
+              '</span><span class="mi-id">' +
+              esc(mission.id) +
+              ' · ' +
+              esc(mission.state) +
+              '</span></span></a>',
+          )
+          .join('')
+      : '<span class="muted small">No missions yet.</span>';
+  } catch {
+    conn.textContent = 'daemon · offline';
+    conn.className = 'conn err';
+    missionList.innerHTML =
+      '<span class="muted small">Cannot reach the daemon.</span>';
+  }
 }
 
 async function home() {
   const data = await api('projects');
   render(
-    '<h2>Project home</h2><p class="muted">Open a repository to index it, then read its repo story.</p>' +
-      '<form id="open-form"><label>Repository path<input name="path" required /></label><button type="submit">Open project</button></form>' +
-      '<h3>Projects</h3><div class="grid">' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Project home</h2></div>' +
+      '<p class="muted">Open a repository to index it, then read its repo story or start a mission.</p></div>' +
+      '<form id="open-form"><label>Repository path<input name="path" required placeholder="D:\\path\\to\\repo" /></label>' +
+      '<div class="row"><button type="submit" class="primary">Open project</button></div></form>' +
+      '<div class="section"><h3>Projects</h3><div class="grid">' +
       (data.projects.length
         ? data.projects
             .map(
               (project) =>
                 '<div class="card"><strong>' +
                 esc(project.display_name) +
-                '</strong><p class="mono">' +
+                '</strong><span class="mono muted">' +
                 esc(project.root_path) +
-                '</p><p><a href="#/story/' +
+                '</span><span><a href="#/story/' +
                 esc(project.id) +
-                '">Repo story</a></p></div>',
+                '">Repo story</a></span></div>',
             )
             .join('')
-        : '<p class="muted">No projects opened yet.</p>') +
-      '</div>',
+        : '<p class="empty">No projects opened yet.</p>') +
+      '</div></div></div>',
   );
   document.querySelector('#open-form').addEventListener('submit', (event) => {
     event.preventDefault();
@@ -151,7 +194,8 @@ async function home() {
 async function newMission() {
   const data = await api('projects');
   render(
-    '<h2>New mission</h2><p class="muted">A mission runs the configured crew, sandbox and OpenPitStop gate. One mission per repository at a time.</p>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>New mission</h2></div>' +
+      '<p class="muted">Runs the configured crew, sandbox and OpenPitStop gate. One mission per repository at a time.</p></div>' +
       '<form id="mission-form"><label>Repository<select name="repo">' +
       data.projects
         .map(
@@ -163,10 +207,12 @@ async function newMission() {
             '</option>',
         )
         .join('') +
-      '</select></label><label>Request<textarea name="request" rows="5" required></textarea></label><button type="submit">Start mission</button></form>' +
+      '</select></label><label>Request<textarea name="request" rows="6" required placeholder="Describe the change to make…"></textarea></label>' +
+      '<div class="row"><button type="submit" class="primary">Start mission</button></div></form>' +
       (data.projects.length
         ? ''
-        : '<p class="notice">Open a project first on the Project home screen.</p>'),
+        : '<p class="notice">Open a project first on the Project home screen.</p>') +
+      '</div>',
   );
   document
     .querySelector('#mission-form')
@@ -187,117 +233,129 @@ async function newMission() {
 async function missions() {
   const data = await api('missions');
   render(
-    '<h2>Mission control</h2><p class="muted">Live daemon state only. No simulated progress.</p>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Missions</h2></div>' +
+      '<p class="muted">Live daemon state only. No simulated progress.</p></div>' +
       (data.missions.length
         ? '<table><tr><th>Mission</th><th>State</th><th>Message</th></tr>' +
           data.missions
             .map(
               (mission) =>
-                '<tr><td>' +
-                missionLink(mission) +
-                '</td><td>' +
-                stateBadge(mission.state) +
+                '<tr><td><a href="#/mission/' +
+                esc(mission.id) +
+                '"><code>' +
+                esc(mission.id) +
+                '</code></a><br /><span class="muted small">' +
+                esc((mission.request ?? '').slice(0, 120)) +
+                '</span></td><td>' +
+                badge(mission.state) +
                 '</td><td>' +
                 esc(mission.message) +
                 '</td></tr>',
             )
             .join('') +
           '</table>'
-        : '<p class="muted">No missions recorded.</p>'),
+        : '<p class="empty">No missions recorded.</p>') +
+      '</div>',
+  );
+}
+
+function eventCard(item, pendingIds) {
+  const event = item.event;
+  const glyph = EVENT_GLYPH[event.type] ?? '·';
+  let cls = 'event';
+  if (event.type === 'referee')
+    cls += event.verdict === 'VERIFIED' ? ' referee-ok' : ' referee-bad';
+  if (event.type === 'approval.requested' && pendingIds.has(event.id))
+    cls += ' approval';
+  let actions = '';
+  if (event.type === 'approval.requested' && pendingIds.has(event.id)) {
+    actions =
+      '<div class="row"><button class="primary" data-approve="' +
+      esc(event.id) +
+      '" data-hash="' +
+      esc(event.hash) +
+      '">Approve</button><button class="danger" data-reject="' +
+      esc(event.id) +
+      '" data-hash="' +
+      esc(event.hash) +
+      '">Reject</button></div>';
+  }
+  if (event.type === 'evidence') {
+    actions =
+      '<div class="row"><button data-artifact="' +
+      esc(event.artifact) +
+      '">Read artifact</button><span class="e-meta">' +
+      esc(event.artifact.slice(0, 16)) +
+      '</span></div><pre class="artifact-view" hidden></pre>';
+  }
+  return (
+    '<article class="' +
+    cls +
+    '"><span class="glyph">' +
+    glyph +
+    '</span><div class="e-body"><span class="e-kind">' +
+    esc(event.type) +
+    '</span><span class="e-msg">' +
+    esc(eventMessage(event)) +
+    '</span><span class="e-meta">#' +
+    esc(item.sequence) +
+    '</span>' +
+    actions +
+    '</div></article>'
   );
 }
 
 async function mission(id) {
   const data = await api('missions/' + id);
-  const mission = data.mission ?? data;
-  const events = mission.events ?? [];
-  const pending = events.filter(
-    (item) =>
-      item.event.type === 'approval.requested' &&
-      !events.some(
-        (other) =>
-          other.event.type === 'approval.resolved' &&
-          other.event.id === item.event.id,
-      ),
+  const record = data.mission ?? data;
+  const events = record.events ?? [];
+  const pendingIds = new Set(
+    events
+      .filter(
+        (item) =>
+          item.event.type === 'approval.requested' &&
+          !events.some(
+            (other) =>
+              other.event.type === 'approval.resolved' &&
+              other.event.id === item.event.id,
+          ),
+      )
+      .map((item) => item.event.id),
   );
-  const evidence = events.filter((item) => item.event.type === 'evidence');
   const referee = events.findLast((item) => item.event.type === 'referee');
+  const verdictState = referee ? referee.event.verdict : record.state;
   render(
-    '<h2>Mission <code>' +
-      esc(mission.id) +
-      '</code> ' +
-      stateBadge(mission.state) +
-      '</h2><p>' +
-      esc(mission.request) +
-      '</p><p class="muted mono">' +
-      esc(mission.repo) +
-      '</p>' +
-      '<div class="row"><button data-action="pause">Pause</button><button data-action="resume">Resume</button><button class="danger" data-action="cancel">Cancel</button><button data-action="certificate">Merge certificate</button></div>' +
-      '<h3>Verdict</h3>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>' +
+      esc(record.request) +
+      '</h2>' +
+      badge(record.state) +
+      '</div><span class="repo">' +
+      esc(record.repo) +
+      ' · ' +
+      esc(record.id) +
+      '</span><div class="row"><button data-action="pause">Pause</button><button data-action="resume">Resume</button><button class="danger" data-action="cancel">Cancel</button><button data-action="certificate">Merge certificate</button><a href="#/arena/' +
+      esc(record.id) +
+      '">Arena</a></div></div>' +
+      '<div class="verdict ' +
+      verdictClass(verdictState) +
+      '"><span class="v-state">' +
+      esc(verdictState) +
+      '</span><span class="muted">' +
+      esc(
+        referee
+          ? referee.event.message
+          : 'NOT_PROVEN: no independent OpenPitStop verdict is recorded.',
+      ) +
+      '</span>' +
       (referee
-        ? '<p>' +
-          esc(referee.event.verdict) +
-          ' — ' +
-          esc(referee.event.message) +
-          ' <code>' +
-          esc(referee.event.digest.slice(0, 16)) +
-          '</code></p>'
-        : '<p class="notice">NOT_PROVEN: no independent OpenPitStop verdict is recorded.</p>') +
-      '<h3>Pending approvals</h3>' +
-      (pending.length
-        ? pending
-            .map(
-              (item) =>
-                '<div class="card"><strong>' +
-                esc(item.event.action) +
-                '</strong><p>' +
-                esc(item.event.reason) +
-                '</p><button data-approve="' +
-                esc(item.event.id) +
-                '" data-hash="' +
-                esc(item.event.hash) +
-                '">Approve</button> <button class="danger" data-reject="' +
-                esc(item.event.id) +
-                '" data-hash="' +
-                esc(item.event.hash) +
-                '">Reject</button></div>',
-            )
-            .join('')
-        : '<p class="muted">No approvals are waiting.</p>') +
-      '<h3>Evidence</h3>' +
-      (evidence.length
-        ? '<table><tr><th>Label</th><th>Artifact</th><th>Exit</th><th></th></tr>' +
-          evidence
-            .map(
-              (item) =>
-                '<tr><td>' +
-                esc(item.event.label) +
-                '</td><td class="mono">' +
-                esc(item.event.artifact.slice(0, 16)) +
-                '</td><td>' +
-                esc(item.event.exitCode ?? 'n/a') +
-                '</td><td><button data-artifact="' +
-                esc(item.event.artifact) +
-                '">Read</button></td></tr>',
-            )
-            .join('') +
-          '</table><pre id="artifact-view" hidden></pre>'
-        : '<p class="muted">No evidence artifacts recorded.</p>') +
-      '<h3>Arena</h3><p><a href="#/arena/' +
-      esc(mission.id) +
-      '">Candidate arena and certificate</a></p>' +
-      '<h3>Timeline</h3><div class="timeline">' +
-      events
-        .map(
-          (item) =>
-            '<article><span class="seq">#' +
-            esc(item.sequence) +
-            '</span> ' +
-            esc(eventSummary(item.event)) +
-            '</article>',
-        )
-        .join('') +
-      '</div>',
+        ? '<code>' + esc(referee.event.digest.slice(0, 16)) + '</code>'
+        : '') +
+      '</div>' +
+      '<div class="section"><h3>Thread</h3><div class="events">' +
+      (events.length
+        ? events.map((item) => eventCard(item, pendingIds)).join('')
+        : '<p class="empty">No events recorded.</p>') +
+      '</div></div></div>',
   );
   view.querySelectorAll('button[data-action]').forEach((button) =>
     button.addEventListener('click', () => {
@@ -306,9 +364,9 @@ async function mission(id) {
         api('missions/' + id + '/certificate')
           .then((certificate) =>
             render(
-              '<h2>Merge certificate</h2><pre>' +
+              '<div class="thread"><h2>Merge certificate</h2><pre>' +
                 esc(JSON.stringify(certificate, null, 2)) +
-                '</pre>',
+                '</pre></div>',
             ),
           )
           .catch(failure);
@@ -323,7 +381,7 @@ async function mission(id) {
     button.addEventListener('click', () => {
       api('artifacts/' + button.dataset.artifact)
         .then((artifact) => {
-          const pre = document.querySelector('#artifact-view');
+          const pre = button.closest('.e-body').querySelector('.artifact-view');
           pre.hidden = false;
           pre.textContent = artifact.content;
         })
@@ -349,8 +407,9 @@ async function mission(id) {
 async function arena(id) {
   const data = await api('missions/' + id + '/arena');
   render(
-    '<h2>Candidate arena</h2><p class="muted">Selection requires an exact digest match with the independent verdict.</p>' +
-      '<h3>Candidates</h3><table><tr><th>Candidate</th><th>Branch</th><th>Baseline</th></tr>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Candidate arena</h2></div>' +
+      '<p class="muted">Selection requires an exact digest match with the independent verdict.</p></div>' +
+      '<div class="section"><h3>Candidates</h3><table><tr><th>Candidate</th><th>Branch</th><th>Baseline</th></tr>' +
       data.candidates
         .map(
           (candidate) =>
@@ -363,8 +422,8 @@ async function arena(id) {
             '</td></tr>',
         )
         .join('') +
-      '</table>' +
-      '<h3>Eliminations</h3>' +
+      '</table></div>' +
+      '<div class="section"><h3>Eliminations</h3>' +
       (data.eliminations.length
         ? '<table><tr><th>Candidate</th><th>Reason</th></tr>' +
           data.eliminations
@@ -378,8 +437,9 @@ async function arena(id) {
             )
             .join('') +
           '</table>'
-        : '<p class="muted">No eliminations recorded.</p>') +
-      '<h3>Selection</h3>' +
+        : '<p class="empty">No eliminations recorded.</p>') +
+      '</div>' +
+      '<div class="section"><h3>Selection</h3>' +
       (data.selection
         ? '<p class="mono">' +
           esc(data.selection.candidateId) +
@@ -387,17 +447,21 @@ async function arena(id) {
           esc(data.selection.digest.slice(0, 16)) +
           '</p>'
         : '<p class="notice">NOT_PROVEN: no candidate has been selected.</p>') +
-      '<h3>Decisions</h3>' +
-      data.decisions
-        .map(
-          (decision) =>
-            '<p>' +
-            esc(decision.branch ? 'branched' : 'single path') +
-            ' — ' +
-            esc(decision.reason) +
-            '</p>',
-        )
-        .join(''),
+      '</div>' +
+      '<div class="section"><h3>Decisions</h3>' +
+      (data.decisions.length
+        ? data.decisions
+            .map(
+              (decision) =>
+                '<p>' +
+                esc(decision.branch ? 'branched' : 'single path') +
+                ' — ' +
+                esc(decision.reason) +
+                '</p>',
+            )
+            .join('')
+        : '<p class="empty">No decisions recorded.</p>') +
+      '</div></div>',
   );
 }
 
@@ -411,17 +475,18 @@ async function story(id) {
     'trust',
   ];
   render(
-    '<h2>Repo story</h2><p class="muted mono">' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Repo story</h2></div>' +
+      '<span class="repo">' +
       esc(data.root) +
       ' @ ' +
       esc(data.head.slice(0, 12)) +
-      '</p>' +
+      '</span></div>' +
       views
         .map((name) => {
           const items = data.items.filter((item) => item.view === name);
           if (!items.length) return '';
           return (
-            '<h3>' +
+            '<div class="section"><h3>' +
             esc(name) +
             '</h3><table><tr><th>Statement</th><th>Kind</th><th>Evidence</th></tr>' +
             items
@@ -440,19 +505,20 @@ async function story(id) {
                   '</td></tr>',
               )
               .join('') +
-            '</table>'
+            '</table></div>'
           );
         })
         .join('') +
-      '<h3>Limitations</h3><p class="notice">' +
+      '<div class="section"><h3>Limitations</h3><p class="notice">' +
       esc(data.limitations.join(' ') || 'None recorded.') +
-      '</p>',
+      '</p></div></div>',
   );
 }
 
 async function browserLab() {
   render(
-    '<h2>Browser lab</h2><p class="muted">Headless or observe runs against authorized loopback targets only. Screenshots and traces are written to the daemon state directory.</p>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Browser lab</h2></div>' +
+      '<p class="muted">Headless or observe runs against authorized loopback targets only. Screenshots and traces are written to the daemon state directory.</p></div>' +
       '<form id="browser-form"><label>Target URL<input name="url" value="http://127.0.0.1:4173/" required /></label><label>Mode<select name="mode"><option>headless</option><option>observe</option></select></label><label>Scenario JSON<textarea name="scenario" rows="12">' +
       esc(
         JSON.stringify(
@@ -466,7 +532,7 @@ async function browserLab() {
           2,
         ),
       ) +
-      '</textarea></label><button type="submit">Run scenario</button></form><pre id="browser-result" hidden></pre>',
+      '</textarea></label><div class="row"><button type="submit" class="primary">Run scenario</button></div></form><pre id="browser-result" hidden></pre></div>',
   );
   document
     .querySelector('#browser-form')
@@ -494,8 +560,9 @@ async function browserLab() {
 async function providers() {
   const data = await api('providers');
   render(
-    '<h2>Providers</h2><p class="muted">Credentials are stored in the operating system keychain and never rendered here.</p>' +
-      '<h3>Configured routing</h3><table><tr><th>Id</th><th>Provider</th><th>Model</th></tr>' +
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Providers</h2></div>' +
+      '<p class="muted">Credentials are stored in the operating system keychain and never rendered here.</p></div>' +
+      '<div class="section"><h3>Configured routing</h3><table><tr><th>Id</th><th>Provider</th><th>Model</th></tr>' +
       data.configured
         .map(
           (provider) =>
@@ -508,7 +575,7 @@ async function providers() {
             '</td></tr>',
         )
         .join('') +
-      '</table><h3>Stored credentials</h3><table><tr><th>Provider</th><th>Secret reference</th></tr>' +
+      '</table></div><div class="section"><h3>Stored credentials</h3><table><tr><th>Provider</th><th>Secret reference</th></tr>' +
       data.providers
         .map(
           (provider) =>
@@ -519,7 +586,7 @@ async function providers() {
             '</td></tr>',
         )
         .join('') +
-      '</table>',
+      '</table></div></div>',
   );
 }
 
@@ -528,8 +595,8 @@ async function approvals() {
   const sections = [];
   for (const listed of data.missions) {
     const detail = await api('missions/' + listed.id);
-    const mission = detail.mission ?? detail;
-    const events = mission.events ?? [];
+    const record = detail.mission ?? detail;
+    const events = record.events ?? [];
     for (const item of events) {
       if (item.event.type !== 'approval.requested') continue;
       const resolved = events.find(
@@ -540,30 +607,29 @@ async function approvals() {
       if (resolved) continue;
       sections.push(
         '<div class="card"><strong>' +
-          esc(item.event.action) +
+          esc(item.event.candidateId) +
           '</strong><p>' +
           esc(item.event.reason) +
-          '</p><p class="muted mono">mission ' +
-          esc(mission.id) +
-          '</p><div class="row"><button data-approve="' +
+          '</p><span class="muted mono small">mission ' +
+          esc(record.id) +
+          '</span><div class="row"><button class="primary" data-approve="' +
           esc(item.event.id) +
           '" data-hash="' +
           esc(item.event.hash) +
-          '" data-mission="' +
-          esc(mission.id) +
-          '">Approve</button> <button class="danger" data-reject="' +
+          '">Approve</button><button class="danger" data-reject="' +
           esc(item.event.id) +
           '" data-hash="' +
           esc(item.event.hash) +
-          '" data-mission="' +
-          esc(mission.id) +
           '">Reject</button></div></div>',
       );
     }
   }
   render(
-    '<h2>Approvals</h2><p class="muted">Protected actions wait for a real decision; no auto-approval path exists.</p>' +
-      (sections.join('') || '<p class="muted">No approvals are waiting.</p>'),
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Approvals</h2></div>' +
+      '<p class="muted">Protected actions wait for a real decision; no auto-approval path exists.</p></div>' +
+      '<div class="grid">' +
+      (sections.join('') || '<p class="empty">No approvals are waiting.</p>') +
+      '</div></div>',
   );
   view
     .querySelectorAll('button[data-approve], button[data-reject]')
@@ -592,6 +658,7 @@ async function route() {
         link.getAttribute('href') === '#/' + (name || 'home'),
       ),
     );
+  await refreshSidebar(name === 'mission' ? id : undefined);
   try {
     if (name === 'new') await newMission();
     else if (name === 'missions') await missions();
@@ -608,5 +675,8 @@ async function route() {
   }
 }
 
+document.querySelector('#new-mission').addEventListener('click', () => {
+  location.hash = '#/new';
+});
 window.addEventListener('hashchange', route);
 route();

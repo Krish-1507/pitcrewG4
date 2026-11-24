@@ -21,6 +21,110 @@ const options = parseArgs({
   },
   allowPositionals: true,
 });
+const useColor =
+  Boolean(process.stdout.isTTY) &&
+  !options.values.json &&
+  !process.env.NO_COLOR;
+const ansi = (code: string, text: string): string =>
+  useColor
+    ? String.fromCharCode(27) +
+      '[' +
+      code +
+      'm' +
+      text +
+      String.fromCharCode(27) +
+      '[0m'
+    : text;
+const dim = (text: string): string => ansi('2', text);
+const bold = (text: string): string => ansi('1', text);
+const green = (text: string): string => ansi('32', text);
+const red = (text: string): string => ansi('31', text);
+const yellow = (text: string): string => ansi('33', text);
+const cyan = (text: string): string => ansi('36', text);
+const GLYPH: Record<string, string> = {
+  phase: '\u25b8',
+  evidence: '\u25c6',
+  referee: '\u2696',
+  'approval.requested': '\u26a0',
+  'approval.resolved': '\u2713',
+  candidate: '\u25e7',
+  'candidate.eliminated': '\u2715',
+  'candidate.selected': '\u2605',
+  'arena.decision': '\u2442',
+  delegation: '\u25cf',
+  model: '\u2726',
+  control: '\u23ef',
+  pause: '\u23f8',
+  budget: '\u2314',
+  error: '!',
+};
+type Mission = z.infer<typeof missionSchema>;
+type MissionEvent = Mission['events'][number]['event'];
+function styledLine(event: MissionEvent): string {
+  const glyph = GLYPH[event.type] ?? '·';
+  const head = dim(glyph) + ' ' + bold(event.type.padEnd(18));
+  switch (event.type) {
+    case 'phase':
+      return head + ' ' + dim(event.state.padEnd(11)) + ' ' + event.message;
+    case 'evidence':
+      return (
+        head +
+        ' ' +
+        event.label +
+        dim('  exit ' + (event.exitCode === null ? 'n/a' : event.exitCode))
+      );
+    case 'referee':
+      return (
+        head +
+        ' ' +
+        (event.verdict === 'VERIFIED'
+          ? green('VERIFIED')
+          : red(event.verdict)) +
+        ' ' +
+        event.message
+      );
+    case 'approval.requested':
+      return head + ' ' + yellow('action required') + dim(' — ') + event.reason;
+    case 'approval.resolved':
+      return (
+        head + ' ' + (event.approved ? green('approved') : red('rejected'))
+      );
+    case 'candidate':
+      return (
+        head + ' ' + event.candidate.id + dim(' @ ') + event.candidate.root
+      );
+    case 'candidate.eliminated':
+      return head + ' ' + event.candidateId + dim(' — ') + event.reason;
+    case 'candidate.selected':
+      return head + ' ' + green(event.candidateId) + dim(' — ') + event.reason;
+    case 'arena.decision':
+      return (
+        head +
+        ' ' +
+        (event.branch ? 'branch' : 'single-path') +
+        dim(' — ') +
+        event.reason
+      );
+    case 'delegation':
+      return (
+        head +
+        ' ' +
+        cyan(event.role) +
+        dim(' · ') +
+        event.status +
+        dim(' · ') +
+        event.mode
+      );
+    case 'model':
+      return (
+        head + ' ' + event.calls + ' call(s)' + dim(' · ' + event.provider)
+      );
+    case 'control':
+      return head + ' ' + dim(event.action);
+    default:
+      return head;
+  }
+}
 if (options.values.help || !options.positionals.length) {
   console.log(
     'PITCREW\n\nUsage: pitcrew --config <trusted.json> [--repo .] [--state .pitcrew] "<mission>"\n       pitcrew --config <trusted.json> doctor | open | ui | replay <mission> | diff <mission> | certificate <mission>\n       pitcrew --config <trusted.json> story <project> | skills <dir> | blindspot --repo <path> --mutations <file.json>\n\nEvidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.\nDevelopment P0: explicit provider and execution configuration required.',
@@ -185,9 +289,13 @@ if (options.values.help || !options.positionals.length) {
       missionId = created.mission_id;
       if (!options.values.json)
         console.log(
-          '\n PITCREW\n\n ' +
+          '\n' +
+            bold('PITCREW') +
+            dim('  mission control') +
+            '\n ' +
             options.positionals.join(' ') +
-            '\n Mission ' +
+            '\n' +
+            dim(' mission ') +
             missionId +
             '\n',
         );
@@ -199,9 +307,11 @@ if (options.values.help || !options.positionals.length) {
           if (item.event.type === 'approval.requested') {
             const approval = item.event;
             console.log(
-              'Approval required: ' +
+              yellow('\n ⚠ Approval required') +
+                dim(' — ') +
                 approval.reason +
-                '\nAction hash: ' +
+                '\n ' +
+                dim('action hash ') +
                 approval.hash,
             );
             console.log(
@@ -219,78 +329,36 @@ if (options.values.help || !options.positionals.length) {
               action_hash: approval.hash,
             });
           }
-          if (item.event.type === 'control' && !options.values.json)
-            console.log(' CONTROL          ' + item.event.action);
           if (options.values.json) console.log(JSON.stringify(item));
-          else if (item.event.type === 'phase')
-            console.log(
-              ' ' + item.event.state.padEnd(16) + ' ' + item.event.message,
-            );
-          else if (item.event.type === 'evidence')
-            console.log(
-              ' EVIDENCE         ' +
-                item.event.label +
-                ' → ' +
-                item.event.artifact.slice(0, 12),
-            );
-          else if (item.event.type === 'delegation')
-            console.log(
-              ' CREW             ' +
-                item.event.role +
-                ' · ' +
-                item.event.status +
-                ' · ' +
-                item.event.mode,
-            );
-          else if (item.event.type === 'arena.decision')
-            console.log(
-              ' ARENA            ' +
-                (item.event.branch ? 'branch' : 'single-path') +
-                ' · ' +
-                item.event.reason,
-            );
-          else if (item.event.type === 'candidate.eliminated')
-            console.log(
-              ' ARENA            eliminated ' +
-                item.event.candidateId +
-                ' · ' +
-                item.event.reason,
-            );
-          else if (item.event.type === 'candidate.selected')
-            console.log(
-              ' ARENA            selected ' +
-                item.event.candidateId +
-                ' · ' +
-                item.event.reason,
-            );
-          else if (item.event.type === 'model')
-            console.log(
-              ' MODEL            ' +
-                item.event.calls +
-                ' call(s) · ' +
-                item.event.provider +
-                ' · cost unknown',
-            );
+          else console.log(' ' + styledLine(item.event));
         }
         if (
           ['VERIFIED', 'BLOCKED', 'NOT_PROVEN', 'CANCELLED'].includes(
             mission.state,
           )
         ) {
-          if (!options.values.json)
-            console.log(
-              '\n ' +
-                mission.state.replace('_', ' ') +
-                '\n ' +
-                mission.message +
-                '\n' +
-                (mission.candidate
-                  ? ' Candidate: ' +
-                    mission.candidate.root +
-                    '\n Inspect: pitcrew --config <config> --state <state> diff ' +
-                    mission.id
-                  : ''),
-            );
+          if (!options.values.json) {
+            const verdictColor =
+              mission.state === 'VERIFIED'
+                ? green
+                : mission.state === 'BLOCKED'
+                  ? red
+                  : yellow;
+            const lines = [
+              '',
+              ' ' + verdictColor(bold(mission.state.replace('_', ' '))),
+              ' ' + mission.message,
+            ];
+            if (mission.candidate) {
+              lines.push(dim(' candidate ') + mission.candidate.root);
+              lines.push(
+                dim(' inspect   ') +
+                  'pitcrew --config <config> --state <state> diff ' +
+                  mission.id,
+              );
+            }
+            console.log(lines.join('\n') + '\n');
+          }
           process.exitCode =
             mission.state === 'VERIFIED'
               ? 0
