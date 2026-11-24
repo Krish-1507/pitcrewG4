@@ -15,7 +15,7 @@ Deterministic suite: 92 tests across 16 files, passing. Commands: `pnpm build`, 
 | Stale evidence cannot authorize a changed candidate | PASS    | `tests/arena.test.ts` binds records and selection to exact candidate digests and rejects mismatches. `tests/security.test.ts` returns `STALE_EVIDENCE` for a tampered artifact. `tests/certificate.test.ts` requires matching selection and referee digests with fresh evidence.                                                          |
 | An OpenPitStop failure blocks the verified state    | PASS    | `tests/referee-gate.test.ts` reduces a BLOCKED verdict to BLOCKED and forbids a verdict before the final gate or without a candidate. `packages/mission-runtime` forbids IMPLEMENTING to VERIFIED directly.                                                                                                                               |
 | Missing OpenPitStop yields NOT_PROVEN               | PASS    | `tests/referee-gate.test.ts` reduces a missing verdict to NOT_PROVEN. `tests/certificate.test.ts` produces no certificate and reports no verified referee when the verdict is absent.                                                                                                                                                     |
-| Benchmark raw results are published                 | PASS    | `benchmarks/pitcrew-core/results/run-2026-11-24T07-20-08-264Z.json` records ten MATCH rows, source commit `46f119b`, `dirty: false`, `contenders: []` and the fixture-validation limitation.                                                                                                                                              |
+| Benchmark raw results are published                 | PASS    | `benchmarks/pitcrew-core/results/run-2026-11-24T07-58-20-982Z.json` records ten MATCH rows, source commit `8e11062`, `dirty: false`, `contenders: []` and the fixture-validation limitation.                                                                                                                                              |
 | A clean installation is verified                    | PARTIAL | `pnpm install --frozen-lockfile`, build, test, typecheck, lint and format checks pass on Windows 11 locally. CI runs the same commands on `ubuntu-latest` and `windows-latest`. A clean macOS installation has not been exercised and remains NOT_PROVEN.                                                                                 |
 
 ## OpenPitStop independent verification
@@ -27,20 +27,23 @@ node_modules/.bin/openpitstop scan
 node_modules/.bin/openpitstop verify
 ```
 
-Result for source commit `fe84322567e392d0e985905e793410610e70ffa1` (Mission Control UI and CLI redesign, plus a test-stability hardening):
+Result for source commit `8e110621cba81f8c7e74688767e623b375ec6e82` (onboarding script, root convenience scripts, CLI `ui` keep-alive, and the documentation alignment):
 
-- verdict: OK, exit code 0;
+- verdict: OK, exit code 0, not blocked, not stale;
 - integrity: CLEAN, 0 confirmed, 0 suspicious;
 - honesty: 100, TRUSTWORTHY;
 - regression risk: Low, zero deltas in tests passed/failed, security and duplication;
-- tests: 92/92 passed;
-- candidate binding: clean working tree (tree digest `69f79329…`);
+- tests: 92/92 passed (52.5 s);
+- candidate binding: clean working tree, head `8e11062`, tree digest `6b25122…`;
+- sealed evidence digest: `d21e628e…`, signed at `2026-11-24T07:57:16.462Z` (baseline evidence `87b0b253…`);
 - OpenPitStop score: 56/100 (C-), unchanged from the baseline scan;
 - scan risk: Low; 22 medium heuristic findings remain.
 
-The redesign changed only `apps/cli` and `apps/desktop`. Remaining heuristic findings include two UI render sinks at `apps/desktop/src/app.js:49` and `:135`; every interpolated value passes through the `esc()` helper, so they are recorded as known false positives rather than accepted exploits. The pre-existing clusters (file-upload size/type, direct DB access, fixture duplication) are unchanged from the baseline scan.
+CI run `45351565624` is green on `ubuntu-latest` (50 s) and `windows-latest` (1 m 29 s) for this commit (build, test, typecheck, lint, format).
 
-CI is green on `ubuntu-latest` and `windows-latest` for this commit (build, test, typecheck, lint, format). Three timing-sensitive checks were hardened without weakening their assertions: the process-tree cancellation test allows bounded reaping time; the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path; and its disposable-worktree check retries a transient `git worktree list` lock before asserting exactly one worktree.
+Remaining heuristic findings include two UI render sinks at `apps/desktop/src/app.js:49` and `:135`; every interpolated value passes through the `esc()` helper, so they are recorded as known false positives rather than accepted exploits. The scan also flags the printed Mission Control URL at `apps/cli/src/index.ts:216` as credential logging. That bearer token is an ephemeral, loopback-only daemon session token printed to the local operator's terminal because the UI reads it from the URL fragment and `sessionStorage`; it is never written to SQLite, evidence artifacts, model context or remote logs. It is recorded here as an intentional local-only disclosure. The pre-existing clusters (file-upload size/type, direct DB access, fixture duplication) are unchanged from the baseline scan.
+
+Three timing-sensitive checks were hardened in the preceding source commit without weakening their assertions: the process-tree cancellation test allows bounded reaping time; the daemon blindspot test forces deterministic reduced isolation so a CI Docker daemon cannot change the execution path; and its disposable-worktree check retries a transient `git worktree list` lock before asserting exactly one worktree.
 
 This document was updated in a later documentation-only commit after the verified source commit; no source file differs.
 

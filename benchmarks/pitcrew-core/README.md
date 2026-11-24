@@ -4,7 +4,7 @@
 
 ## What this harness measures today
 
-`run.mjs` executes each task's acceptance command against its fixture and compares the exit code with the recorded baseline. The latest published raw result is `results/run-2026-11-24T07-20-08-264Z.json` (ten of ten `MATCH`, clean commit `46f119b`, `contenders: []`). It validates that:
+`run.mjs` executes each task's acceptance command against its fixture and compares the exit code with the recorded baseline. The latest published raw result is `results/run-2026-11-24T07-58-20-982Z.json` (ten of ten `MATCH`, clean commit `8e11062`, `contenders: []`). It validates that:
 
 - every scenario reproduces its intended baseline condition;
 - the harness runs each command with an explicit working directory, no shell interpolation and a bounded timeout;

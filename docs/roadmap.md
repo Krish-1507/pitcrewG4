@@ -49,7 +49,7 @@ Skills live in `skills/<skill>/` with a manifest, schemas and scripts. Initial s
 
 ### Milestone 13: Benchmark (shipped, fixture validation mode)
 
-A public benchmark, `benchmarks/pitcrew-core`, spanning simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependencies and environment failures. The intended contenders are a strong single-path coding agent, PitCrew single-path, and PitCrew with the adaptive Arena plus OpenPitStop. Metrics would include task success, false done, regressions, security escapes, model calls, time and human approvals. The published raw results currently validate the ten fixtures and harness in fixture-validation mode with `contenders: []`; no model-backed comparison has been executed. The latest run is `run-2026-11-24T07-20-08-264Z.json`: ten of ten `MATCH` on clean commit `46f119b`. Raw results are published.
+A public benchmark, `benchmarks/pitcrew-core`, spanning simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependencies and environment failures. The intended contenders are a strong single-path coding agent, PitCrew single-path, and PitCrew with the adaptive Arena plus OpenPitStop. Metrics would include task success, false done, regressions, security escapes, model calls, time and human approvals. The published raw results currently validate the ten fixtures and harness in fixture-validation mode with `contenders: []`; no model-backed comparison has been executed. The latest run is `run-2026-11-24T07-58-20-982Z.json`: ten of ten `MATCH` on clean commit `8e11062`. Raw results are published.
 
 ### Milestone 14: PitCrew-G4 profile (shipped)
 
@@ -59,7 +59,7 @@ A competition-ready profile under `profiles/g4/` that maps Context Packs, candid
 
 Clean-machine verification across Windows, Linux and macOS, with and without Docker, local models, OpenPitStop present or missing, interrupted missions, dirty trees, large repos and monorepos. Missing OpenPitStop yields NOT_PROVEN, never a pass.
 
-Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment. OpenPitStop strict verification of commit `fe84322` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 92/92 tests.
+Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment. OpenPitStop strict verification of commit `8e11062` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 92/92 tests.
 
 ## Release gate
 

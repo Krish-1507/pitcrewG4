@@ -26,7 +26,7 @@ When contender runs exist, record: task success, false-done claims, regressions,
 
 ## Current result
 
-`run-2026-11-24T07-20-08-264Z.json` records ten of ten `MATCH` on clean source commit `46f119b` with `contenders: []`. This validates the fixtures, acceptance commands and harness; it is not a model comparison.
+`run-2026-11-24T07-58-20-982Z.json` records ten of ten `MATCH` on clean source commit `8e11062` with `contenders: []`. This validates the fixtures, acceptance commands and harness; it is not a model comparison.
 
 ## Reproducing
 

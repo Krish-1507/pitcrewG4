@@ -51,7 +51,7 @@ This page links each delivered milestone to its code and executable evidence. A 
 
 - Ten tasks under `benchmarks/pitcrew-core` cover simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependency direction and environment failures.
 - Raw results are published in `benchmarks/pitcrew-core/results/`.
-- Latest result: `run-2026-11-24T07-20-08-264Z.json`, ten of ten `MATCH`, source commit `46f119b`, `dirty: false`.
+- Latest result: `run-2026-11-24T07-58-20-982Z.json`, ten of ten `MATCH`, source commit `8e11062`, `dirty: false`.
 - The published result is fixture-validation mode with `contenders: []`; no model-backed comparison is claimed. See [benchmark-methodology.md](../benchmark-methodology.md).
 
 ## Milestone 14: Competition profile

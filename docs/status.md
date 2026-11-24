@@ -41,7 +41,7 @@ Milestone 6's hero fixture is a real duplicate-checkout race. The racy candidate
 
 Milestone 9's browser acceptance reproduces a seeded checkout recovery defect twice against the buggy page and verifies the fixed page with a passing check sequence and accessibility audit. Raw artifacts are written under `.pitcrew/browser-acceptance/`.
 
-Milestone 13's latest raw result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-20-08-264Z.json`: ten of ten fixture baselines `MATCH` on clean commit `46f119b`, `dirty: false`, `contenders: []`. It validates the fixtures and harness only; it does not claim a model comparison.
+Milestone 13's latest raw result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-58-20-982Z.json`: ten of ten fixture baselines `MATCH` on clean commit `8e11062`, `dirty: false`, `contenders: []`. It validates the fixtures and harness only; it does not claim a model comparison.
 
 ## Known limitations
 
@@ -54,4 +54,4 @@ Milestone 13's latest raw result is `benchmarks/pitcrew-core/results/run-2026-11
 
 ## CI
 
-Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks. The latest docs-only commit `46f119b` is green on both.
+Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks. Commit `8e11062` is green on both (run `45351565624`).

@@ -120,7 +120,7 @@ pnpm bench
 pnpm bench --only migration-upgrade
 ```
 
-The latest published result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-20-08-264Z.json`: ten of ten fixture baselines `MATCH`, source commit `46f119b`, `dirty: false`, `contenders: []`.
+The latest published result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-58-20-982Z.json`: ten of ten fixture baselines `MATCH`, source commit `8e11062`, `dirty: false`, `contenders: []`.
 
 This is fixture-validation mode. It proves the harness reproduces each intended starting condition, not that a model solves the tasks. No model-backed comparison has been executed here, so no ranking is claimed. Method: [docs/benchmark-methodology.md](docs/benchmark-methodology.md).
 
