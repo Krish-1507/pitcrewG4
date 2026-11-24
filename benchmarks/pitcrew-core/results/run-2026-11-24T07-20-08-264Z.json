@@ -1,0 +1,185 @@
+{
+  "benchmark": "pitcrew-core",
+  "mode": "baseline-fixture-validation",
+  "generatedAt": "2026-11-24T07:20:08.264Z",
+  "commit": "46f119b329c141907672d448ff7c341abcc52531",
+  "dirty": false,
+  "environment": {
+    "platform": "win32",
+    "release": "node",
+    "node": "v26.13.1"
+  },
+  "contenders": [],
+  "limitations": [
+    "No model-backed contender was executed in this environment; these results validate the harness and fixture baselines only.",
+    "A green baseline row does not measure agent task success, false-done rate or regressions.",
+    "Browser recovery requires a locally installed Chrome or Edge and a local HTTP server."
+  ],
+  "tasks": [
+    {
+      "id": "simple-bug",
+      "category": "simple bug",
+      "description": "A failing unit test must fail on the baseline until the defect is fixed.",
+      "fixture": "fixtures/failing-test",
+      "command": {
+        "executable": "node",
+        "args": ["--test"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "✖ adds two positive numbers (2.9382ms)\n✖ adds negative numbers (0.5314ms)\n✔ adding zero preserves a number (1.8552ms)\nℹ tests 3\nℹ suites 0\nℹ pass 1\nℹ fail 2\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 188.3472\n\n✖ failing tests:\n\ntest at test\\sum.test.js:5:1\n✖ adds two positive numbers (2.9382ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  -1 !== 5\n  \n      at TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/failing-test/test/sum.test.js:5:48)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.start (node:internal/test_runner/test:1262:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: -1,\n    expected: 5,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n\ntest at test\\sum.test.js:6:1\n✖ adds negative numbers (0.5314ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  1 !== -5\n  \n      at TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/failing-test/test/sum.test.js:6:44)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 1,\n    expected: -5,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    },
+    {
+      "id": "multi-file-feature",
+      "category": "multi-file feature",
+      "description": "Visible tests across modules pass on the baseline fixture.",
+      "fixture": "fixtures/multi-module",
+      "command": {
+        "executable": "node",
+        "args": ["--test"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "✖ adds item totals (3.4151ms)\n✖ multiplies quantity by price (0.5601ms)\n✖ empty cart line costs zero (0.415ms)\nℹ tests 3\nℹ suites 0\nℹ pass 0\nℹ fail 3\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 178.5233\n\n✖ failing tests:\n\ntest at total.test.js:5:1\n✖ adds item totals (3.4151ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  -1 !== 5\n  \n      at TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:5:39)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.start (node:internal/test_runner/test:1262:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: -1,\n    expected: 5,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n\ntest at total.test.js:6:1\n✖ multiplies quantity by price (0.5601ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  5 !== 6\n  \n      at TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:6:51)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 5,\n    expected: 6,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n\ntest at total.test.js:7:1\n✖ empty cart line costs zero (0.415ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  4 !== 0\n  \n      at TestContext.<anonymous> (file:///D:/PitCrew%20G4/fixtures/multi-module/total.test.js:7:49)\n      at Test.runInAsyncScope (node:async_hooks:226:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: 4,\n    expected: 0,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n",
+      "stderr": ""
+    },
+    {
+      "id": "architecture-boundaries",
+      "category": "architecture boundaries",
+      "description": "Import boundaries hold for every workspace package.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "id": "authz-coverage",
+      "category": "authz",
+      "description": "The strong verifier rejects anonymous and wrong-role callers.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/strong.test.js"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "✔ an anonymous caller is rejected (1.8305ms)\n✔ a non-admin may not delete (0.3728ms)\n✔ a non-positive quantity is rejected (0.3255ms)\nℹ tests 3\nℹ suites 0\nℹ pass 3\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 171.7279\n",
+      "stderr": ""
+    },
+    {
+      "id": "concurrency-race",
+      "category": "concurrency",
+      "description": "Concurrent duplicate checkouts must reproduce duplicate orders.",
+      "fixture": "fixtures/checkout-race",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/repro-concurrency.mjs", "auto", "benchmark-key", "6"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "orders=3\n",
+      "stderr": ""
+    },
+    {
+      "id": "visible-test-blindspot",
+      "category": "visible-test blindspot",
+      "description": "The weak suite passes even though the auth hole is unprotected.",
+      "fixture": "fixtures/blindspot-weak-suite",
+      "command": {
+        "executable": "node",
+        "args": ["--test", "test/weak.test.js"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "✔ an admin may delete (1.194ms)\n✔ a positive quantity is valid (0.2561ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 147.3349\n",
+      "stderr": ""
+    },
+    {
+      "id": "browser-recovery",
+      "category": "browser recovery",
+      "description": "A seeded checkout recovery defect is reproduced and a fixed page passes.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/browser-acceptance.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "{\n  \"bug\": [\n    {\n      \"ok\": false,\n      \"message\": \"Expected text \\\"Payment failed\\\" in \\\"\\\".\"\n    },\n    {\n      \"ok\": false,\n      \"message\": \"Expected text \\\"Payment failed\\\" in \\\"\\\".\"\n    }\n  ],\n  \"fixed\": [\n    {\n      \"ok\": true,\n      \"checks\": [\n        {\n          \"step\": \"fill\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"click\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"wait 700ms\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"expectText\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"expectEnabled\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        },\n        {\n          \"step\": \"screenshot\",\n          \"ok\": true,\n          \"detail\": \"completed\"\n        }\n      ],\n      \"trace\": \"D:\\\\PitCrew G4\\\\.pitcrew\\\\browser-acceptance\\\\fixed-1\\\\trace.zip\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "id": "migration-upgrade",
+      "category": "migrations",
+      "description": "Reapplying migrations without a version guard fails on a populated database.",
+      "fixture": "fixtures/migration-upgrade",
+      "command": {
+        "executable": "node",
+        "args": ["--experimental-sqlite", "repro.mjs"]
+      },
+      "expectedBaselineExit": 1,
+      "exitCode": 1,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "repeat migration failed: table users already exists\n",
+      "stderr": ""
+    },
+    {
+      "id": "dependency-boundaries",
+      "category": "dependencies",
+      "description": "Forbidden dependency edges stay absent from workspace manifests and imports.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": ["scripts/check-boundaries.mjs"]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "id": "environment-failure-handling",
+      "category": "environment failures",
+      "description": "Sandbox process failures, cancellation and output limits are covered.",
+      "fixture": ".",
+      "command": {
+        "executable": "node",
+        "args": [
+          "--experimental-sqlite",
+          "node_modules/vitest/vitest.mjs",
+          "run",
+          "tests/security.test.ts"
+        ]
+      },
+      "expectedBaselineExit": 0,
+      "exitCode": 0,
+      "matched": true,
+      "timedOut": false,
+      "stdout": "\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.4 \u001b[39m\u001b[90mD:/PitCrew G4\u001b[39m\n\n \u001b[32m✓\u001b[39m tests/security.test.ts \u001b[2m(\u001b[22m\u001b[2m29 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1175\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m paths and bounded process execution\u001b[2m > \u001b[22mterminates huge output \u001b[33m 442\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m paths and bounded process execution\u001b[2m > \u001b[22mcancels the process tree \u001b[33m 436\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m29 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m\n\u001b[2m   Start at \u001b[22m 12:50:05\n\u001b[2m   Duration \u001b[22m 2.83s\u001b[2m (transform 318ms, setup 0ms, collect 830ms, tests 1.17s, environment 0ms, prepare 337ms)\u001b[22m\n\n",
+      "stderr": ""
+    }
+  ]
+}

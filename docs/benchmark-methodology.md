@@ -24,11 +24,16 @@ No contender run is included in the current raw results. The result file records
 
 When contender runs exist, record: task success, false-done claims, regressions, security escapes, model calls, wall time and human approvals. Keep raw output next to the derived summary.
 
+## Current result
+
+`run-2026-11-24T07-20-08-264Z.json` records ten of ten `MATCH` on clean source commit `46f119b` with `contenders: []`. This validates the fixtures, acceptance commands and harness; it is not a model comparison.
+
 ## Reproducing
 
 ```bash
-node benchmarks/pitcrew-core/run.mjs
-node benchmarks/pitcrew-core/run.mjs --only browser-recovery
+pnpm bench
+pnpm bench --only browser-recovery
+pnpm bench --out benchmarks/pitcrew-core/results/<name>.json
 ```
 
-Browser recovery needs Chrome or Edge. Results are written to `benchmarks/pitcrew-core/results/`.
+Browser recovery needs Chrome or Edge. Results are written to `benchmarks/pitcrew-core/results/` and include the source commit, `dirty` state, platform, Node version and contenders.

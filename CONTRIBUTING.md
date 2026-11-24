@@ -22,6 +22,8 @@ pnpm lint
 pnpm format:check
 ```
 
+For a local smoke check, `pnpm build` then `pnpm onboard --repo .` and `pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor`. The onboarding config and state are ignored by Git.
+
 Changes to verification, policy or candidate handling also need a real OpenPitStop run where configured. If independent verification is not available, say so in the description. An unverifiable change is reported as NOT PROVEN, never as verified.
 
 ## Dependencies

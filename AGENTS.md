@@ -57,7 +57,7 @@ packages/
   skills/
   browser-lab/
   openpitstop-adapter/
-  ui-events/
+  blindspot/
   config/
   observability/
 

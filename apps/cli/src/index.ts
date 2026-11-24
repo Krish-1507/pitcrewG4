@@ -212,11 +212,20 @@ if (options.values.help || !options.positionals.length) {
     const command = options.positionals[0];
     if (command === 'doctor')
       console.log(JSON.stringify(await api('doctor'), null, 2));
-    else if (command === 'ui')
+    else if (command === 'ui') {
       console.log(
         'Mission Control: ' + connection.url + '/#token=' + connection.token,
       );
-    else if (command === 'blindspot') {
+      console.log('Press Ctrl+C to stop the daemon.');
+      await new Promise<void>((hold) => {
+        const release = (): void => {
+          child.removeListener('exit', release);
+          hold();
+        };
+        child.once('exit', release);
+        process.once('SIGINT', release);
+      });
+    } else if (command === 'blindspot') {
       if (!options.values.mutations)
         throw new Error(
           'Pass --mutations with a JSON array of controlled mutations.',

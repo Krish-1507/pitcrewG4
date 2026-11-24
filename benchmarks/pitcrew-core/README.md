@@ -4,7 +4,7 @@
 
 ## What this harness measures today
 
-`run.mjs` executes each task's acceptance command against its fixture and compares the exit code with the recorded baseline. The published raw result validates that:
+`run.mjs` executes each task's acceptance command against its fixture and compares the exit code with the recorded baseline. The latest published raw result is `results/run-2026-11-24T07-20-08-264Z.json` (ten of ten `MATCH`, clean commit `46f119b`, `contenders: []`). It validates that:
 
 - every scenario reproduces its intended baseline condition;
 - the harness runs each command with an explicit working directory, no shell interpolation and a bounded timeout;
@@ -15,8 +15,9 @@ It does **not** measure model-backed contender success. No contender was execute
 ## Run
 
 ```bash
-node benchmarks/pitcrew-core/run.mjs
-node benchmarks/pitcrew-core/run.mjs --only migration-upgrade
+pnpm bench
+pnpm bench --only migration-upgrade
+pnpm bench --out benchmarks/pitcrew-core/results/<name>.json
 ```
 
 Results are written to `benchmarks/pitcrew-core/results/run-<timestamp>.json`. Override the path with `--out`. Each record includes the source commit and a `dirty` flag; a published result generated from an uncommitted tree states that explicitly rather than implying the commit contains it.

@@ -41,7 +41,7 @@ Only after the CLI and core are reliable. Screens for project home, new mission,
 
 ### Milestone 11: Merge certificate and replay (shipped)
 
-A certificate binds the selected candidate, its exact identity, acceptance, verification coverage, the OpenPitStop verdict, approvals, eliminated candidates, limitations and an evidence manifest. `pitcrew replay <mission>` reconstructs the timeline. Rerunning verification creates new evidence; it never relabels old evidence as current.
+A certificate binds the selected candidate, its exact identity, acceptance, verification coverage, the OpenPitStop verdict, approvals, eliminated candidates, limitations and an evidence manifest. `pnpm pitcrew replay <mission>` reconstructs the timeline. Rerunning verification creates new evidence; it never relabels old evidence as current.
 
 ### Milestone 12: Skills and integrations (shipped)
 
@@ -49,7 +49,7 @@ Skills live in `skills/<skill>/` with a manifest, schemas and scripts. Initial s
 
 ### Milestone 13: Benchmark (shipped, fixture validation mode)
 
-A public benchmark, `benchmarks/pitcrew-core`, spanning simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependencies and environment failures. The intended contenders are a strong single-path coding agent, PitCrew single-path, and PitCrew with the adaptive Arena plus OpenPitStop. Metrics would include task success, false done, regressions, security escapes, model calls, time and human approvals. The published raw results currently validate the ten fixtures and harness in fixture-validation mode with `contenders: []`; no model-backed comparison has been executed. Raw results are published.
+A public benchmark, `benchmarks/pitcrew-core`, spanning simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependencies and environment failures. The intended contenders are a strong single-path coding agent, PitCrew single-path, and PitCrew with the adaptive Arena plus OpenPitStop. Metrics would include task success, false done, regressions, security escapes, model calls, time and human approvals. The published raw results currently validate the ten fixtures and harness in fixture-validation mode with `contenders: []`; no model-backed comparison has been executed. The latest run is `run-2026-11-24T07-20-08-264Z.json`: ten of ten `MATCH` on clean commit `46f119b`. Raw results are published.
 
 ### Milestone 14: PitCrew-G4 profile (shipped)
 

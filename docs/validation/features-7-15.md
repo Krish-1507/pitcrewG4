@@ -31,6 +31,7 @@ This page links each delivered milestone to its code and executable evidence. A 
 - Screens: project home, new mission, mission control, approvals, arena, repo story, browser lab, evidence and providers.
 - Renders real daemon state only. A missing verdict renders NOT_PROVEN; no progress is fabricated.
 - Same-origin browser requests are accepted with the bearer token; cross-origin requests remain rejected.
+- Evidence: `tests/daemon.test.ts` asserts the page title and `/ui/app.js` delivery. The CLI `ui` command holds the daemon open until `Ctrl+C` or child exit; this lifecycle and a `GET /` 200 response were checked by a manual smoke run. Automated interaction coverage is not claimed; see [modules.md](../modules.md).
 
 ## Milestone 11: Merge certificate and replay
 
@@ -50,6 +51,7 @@ This page links each delivered milestone to its code and executable evidence. A 
 
 - Ten tasks under `benchmarks/pitcrew-core` cover simple bugs, multi-file features, architecture boundaries, authz, concurrency, visible-test blindspots, browser recovery, migrations, dependency direction and environment failures.
 - Raw results are published in `benchmarks/pitcrew-core/results/`.
+- Latest result: `run-2026-11-24T07-20-08-264Z.json`, ten of ten `MATCH`, source commit `46f119b`, `dirty: false`.
 - The published result is fixture-validation mode with `contenders: []`; no model-backed comparison is claimed. See [benchmark-methodology.md](../benchmark-methodology.md).
 
 ## Milestone 14: Competition profile

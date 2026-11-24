@@ -8,6 +8,13 @@ PitCrew is an early development build. The following limitations are current fac
 - A merge certificate is informational. It does not push, merge or deploy anything.
 - Rerunning verification produces new evidence. Old evidence is never relabeled as current.
 
+## Test coverage
+
+- The deterministic suite is 92 tests in 16 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
+- `orchestrator` full-mission behaviour is exercised by the live acceptance script, not CI.
+- `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test.
+- A live mission requires an installed, authenticated model provider.
+
 ## Models and benchmarks
 
 - No model-backed contender was executed for the published benchmark results in this repository. Those results validate fixtures and harness behavior only.
@@ -22,7 +29,7 @@ PitCrew is an early development build. The following limitations are current fac
 ## Platforms
 
 - CI covers Windows and Linux. A clean macOS installation has not been verified in this repository.
-- Native desktop packaging is not shipped. Mission Control is a local web interface served by the daemon.
+- Native desktop packaging is not shipped. Mission Control is a local web interface served by the daemon and is verified by static assertions plus a manual smoke run, not an automated interaction test.
 
 ## Scope
 

@@ -1,111 +1,189 @@
 # PitCrew
 
-PitCrew is a local-first AI software engineering crew. You give it a task like "fix the failing test". It researches your repository, proposes a fix on an isolated Git branch, runs your real tests, and only reports success when an independent referee agrees.
+PitCrew is a local-first AI software engineering crew. You give it a task like "fix the failing test". It reads your repository, proposes a change on an isolated Git branch, runs your real tests, and reports success only when an independent referee agrees.
 
-Trust is the point. PitCrew never edits your working tree. Every candidate change lives in its own Git worktree, evidence is tied to the exact bytes of the change, and the OpenPitStop CLI — a separate program, never imported — issues the final verdict. If no referee says PASS, PitCrew says not proven.
+Trust is the point:
 
-This is a development project, not a finished product. See [docs/roadmap.md](docs/roadmap.md) for what is done and what is next.
+- your working tree is never edited;
+- every candidate lives in its own Git worktree;
+- evidence is bound to the exact bytes it describes;
+- the OpenPitStop CLI — a separate program, never imported — issues the final verdict;
+- if no referee says PASS, PitCrew says `NOT_PROVEN`.
 
-## Capabilities
-
-- Evidence-linked repository intelligence with Product, System, Request Journey, Change Impact and Trust views.
-- An Assumption Ledger and Blindspot Engine that mutate disposable candidates to expose verification debt.
-- A candidate Arena with independent hypotheses, test-weakening detection, elimination and exact-digest selection.
-- Browser QA against authorized loopback targets with semantic locators, traces, screenshots, console and network capture, seeded network failures and axe accessibility audits.
-- Mission Control: a local web interface served by the daemon with real mission events, approvals, arena state, repo story, evidence and provider status.
-- Merge certificates that bind a selected candidate, its digest, the independent verdict, approvals, eliminations and evidence manifest.
-- Nine versioned skills with manifests that request permissions and never grant them.
-- A deterministic benchmark harness and published raw fixtures results.
-- A competition profile under `profiles/g4/`.
+PitCrew is early development software. Milestones 0 through 15 are implemented; Windows and Linux CI pass; a clean macOS installation is still `NOT_PROVEN`. See [docs/status.md](docs/status.md) and [docs/limitations.md](docs/limitations.md).
 
 ## Requirements
 
 - Node.js 22.13 or newer
-- Git
 - pnpm 11.19.0
-- A model. Either the official [Codex CLI](https://developers.openai.com/codex/) installed and authenticated by you, or any OpenAI-compatible endpoint such as Ollama.
+- Git
+- Docker, **or** explicit consent to reduced isolation for development
+- A model: the official [Codex CLI](https://developers.openai.com/codex/) installed and authenticated by you, or a local/OpenAI-compatible endpoint such as Ollama
 
-Keep the OpenPitStop package installed too. It ships as a development dependency here, and PitCrew runs it as a separate process.
+The pinned `openpitstop` package is installed as a development dependency. PitCrew runs it as a separate process.
 
-## Install
+## Install and onboard
+
+Run these from the PitCrew checkout.
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
+pnpm onboard --repo .
 ```
 
-## Use
+`pnpm onboard` writes a trusted `.pitcrew/config.json`, points the referee at the pinned OpenPitStop entry point, validates the result against the real schema, and prints the commands to run next. It never prints or stores a secret value.
 
-Create a JSON config file somewhere outside the repository you want to change:
-
-```json
-{
-  "provider": { "type": "codex", "executable": "codex" },
-  "execution": { "allowReducedIsolation": true },
-  "referee": {
-    "executable": "node",
-    "args": ["/absolute/path/to/node_modules/openpitstop/dist/cli.js"],
-    "requiredLayers": ["stack", "architecture", "baseline"]
-  },
-  "test": { "executable": "node", "args": ["--test"] },
-  "budget": { "maxModelCalls": 4, "timeoutMs": 600000 }
-}
-```
-
-Then run a mission from the repo root:
+Check the environment, then run a mission:
 
 ```sh
-node apps/cli/dist/index.js --config /path/to/config.json --repo /path/to/your-repo --state /path/to/state "fix the failing test"
+pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . doctor
+pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo . "fix the failing test"
 ```
 
-The CLI starts its daemon, plans the work, makes a candidate, and prints the diff and the referee's verdict. You can inspect without running a mission:
+`doctor` checks Git, Docker, OpenPitStop and your model executable. A missing referee or model is reported, not hidden.
+
+To work on a different repository, pass its path:
 
 ```sh
-node apps/cli/dist/index.js --config /path/to/config.json --repo /path/to/your-repo --state /path/to/state doctor
+pnpm onboard --repo ../my-app
+pnpm pitcrew --config .pitcrew/config.json --state .pitcrew --repo ../my-app "fix the failing test"
 ```
 
-`doctor` checks every executable and service it will need. `open` inspects a repository read-only, `replay` shows a past mission, `diff` shows a candidate, `certificate` prints the merge certificate, `story` renders the repo story and `ui` prints the Mission Control URL.
+Keep the config and state in the PitCrew checkout, outside the repository being changed.
 
-Browser QA runs through the daemon against a loopback target:
+### No Docker
+
+The default config uses Docker. If `doctor` reports Docker unavailable, either install it or opt in to host execution explicitly:
+
+```sh
+pnpm onboard --repo . --reduced-isolation
+```
+
+Reduced isolation runs the target's test/build commands on the host. It provides Git isolation, not process or network containment. Use it only for repositories you trust. See [docs/sandbox-security.md](docs/sandbox-security.md).
+
+### Ollama or another compatible endpoint
+
+```sh
+pnpm onboard --provider ollama --model llama3.1
+pnpm onboard --provider openai-compatible --base-url http://127.0.0.1:11434/v1 --model llama3.1
+```
+
+Add `--api-key-env NAME` to reference an environment variable. Never put the key itself in JSON. Details: [docs/providers.md](docs/providers.md).
+
+## Mission Control
+
+```sh
+pnpm pitcrew --config .pitcrew/config.json --state .pitcrew ui
+```
+
+Open the printed `http://127.0.0.1:<port>/#token=...` URL, then press `Ctrl+C` in the terminal to stop the daemon. The token stays in the URL fragment and the browser session; API requests need it, cross-origin requests are rejected.
+
+Mission Control shows real daemon events: mission state, approvals, candidate arena, repo story, browser lab, evidence and provider status. A missing referee verdict renders `NOT_PROVEN`; no progress is invented.
+
+## Commands
+
+All commands accept the same `--config`, `--state` and `--repo` flags shown above.
+
+| Command                        | What it does                                               |
+| ------------------------------ | ---------------------------------------------------------- |
+| `doctor`                       | Check required executables and services                    |
+| `open`                         | Inspect a repository read-only                             |
+| `ui`                           | Serve Mission Control until `Ctrl+C`                       |
+| `replay <mis_id>`              | Print a persisted mission timeline                         |
+| `diff <mis_id>`                | Print a candidate diff and its evidence identity           |
+| `certificate <mis_id>`         | Print the merge certificate, or explain why none exists    |
+| `story <prj_id>`               | Render the five-view repository story                      |
+| `skills [dir]`                 | Validate installed skill manifests                         |
+| `blindspot --mutations <file>` | Run controlled mutations to expose verification debt       |
+| `"<mission>"`                  | Run a mission and stream events, approvals and the verdict |
+
+Exit codes: `0` for `VERIFIED`, `1` for `BLOCKED`, `2` for `NOT_PROVEN` or `CANCELLED`.
+
+Interactive missions accept `/pause`, `/resume` and `/cancel`. A protected edit prints the exact proposal and action hash and requires typing `approve`; non-interactive clients reject it.
+
+## What happens during a mission
+
+1. The request becomes a plan with observable acceptance criteria.
+2. A bounded role (Architect, Implementer, Debugger, Test Engineer, and so on) proposes changes. Model output is untrusted data; policy decides what may run.
+3. Changes are applied inside a disposable Git worktree. Your checkout is not touched.
+4. Your tests run against the candidate. A candidate that weakens a test to look green is rejected.
+5. If tests and policy pass, OpenPitStop independently re-verifies the candidate and issues the verdict.
+6. Every step is an append-only event, so a mission can be replayed and audited.
+
+A merge certificate binds the selected candidate, its digest, the verdict, approvals, eliminations and the evidence manifest. It does not push, merge or deploy anything.
+
+## Benchmarks
+
+```sh
+pnpm bench
+pnpm bench --only migration-upgrade
+```
+
+The latest published result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-20-08-264Z.json`: ten of ten fixture baselines `MATCH`, source commit `46f119b`, `dirty: false`, `contenders: []`.
+
+This is fixture-validation mode. It proves the harness reproduces each intended starting condition, not that a model solves the tasks. No model-backed comparison has been executed here, so no ranking is claimed. Method: [docs/benchmark-methodology.md](docs/benchmark-methodology.md).
+
+## Modules
+
+PitCrew is 17 packages and 3 apps. The deterministic suite passes 92 tests in 16 files. Coverage is not uniform: `orchestrator`, `apps/cli` and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
+
+| Area               | Packages                                   | Main evidence                                          |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------ |
+| Protocol and state | `protocol`, `mission-runtime`              | `protocol.test.ts`, `mission-control.test.ts`          |
+| Roles and planning | `agents`, `orchestrator`                   | `specialists.test.ts`; acceptance script               |
+| Models and policy  | `model-gateway`, `policy-engine`, `config` | `model-gateway.test.ts`, `security.test.ts`            |
+| Isolation          | `sandbox`, `candidate-manager`             | `candidate.test.ts`, `arena.test.ts`                   |
+| Evidence           | `evidence`, `openpitstop-adapter`          | `certificate.test.ts`, `arena.test.ts`                 |
+| Intelligence       | `repo-intelligence`, `blindspot`, `memory` | `repository-intelligence.test.ts`, `blindspot.test.ts` |
+| Skills             | `skills`                                   | `skills.test.ts`                                       |
+| Browser QA         | `browser-lab`                              | `browser-lab.test.ts`, browser acceptance              |
+| Applications       | `daemon`, `cli`, `desktop`                 | `daemon.test.ts`; CLI and UI acceptance                |
+
+## Development
+
+```sh
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm lint
+pnpm format:check
+node scripts/release-check.mjs
+```
+
+Independent referee, on a clean commit:
+
+```sh
+pnpm referee
+```
+
+`pnpm referee` runs `openpitstop scan` and `openpitstop verify`. Verification is bound to the committed tree; uncommitted changes are not certified.
+
+Live acceptance spends a real model call and needs an authenticated Codex CLI:
+
+```sh
+node scripts/live-acceptance.mjs
+```
+
+Browser acceptance needs a locally installed Chrome or Edge:
 
 ```sh
 node scripts/browser-acceptance.mjs
 ```
 
-The acceptance script reproduces a seeded checkout recovery defect twice and verifies the fixed page.
+Neither acceptance script is part of the deterministic suite.
 
-Ollama and other OpenAI-compatible providers work too, and API keys can live in your OS keychain. Full configuration, provider options and safety notes are in [docs/quickstart.md](docs/quickstart.md) and [docs/providers.md](docs/providers.md).
+## Limitations
 
-## How it works
+- macOS clean-install verification is `NOT_PROVEN`; CI covers Windows and Linux.
+- Benchmark results are fixture validation only; no model contender was run.
+- Browser QA uses a local Chrome or Edge and does not download one.
+- The referee runs on the host; a containerized referee is not implemented.
+- Mission Control is a local web interface, not a packaged native app.
+- Production push, merge and deploy are outside the automatic path.
 
-1. Your mission becomes a plan with acceptance criteria.
-2. A bounded role — Implementer, Debugger, Architect, and so on — proposes changes. Model output is data, never commands; policy decides what is allowed.
-3. Changes are applied inside a Git worktree. Your checkout is never touched.
-4. Your tests run against the candidate. If they pass and policy is satisfied, OpenPitStop independently re-verifies the result.
-5. Hard tasks can branch into several candidates with different hypotheses. Weak ones get eliminated — including any candidate that weakens a test to look like it passes.
-6. Every step is an append-only event, so a mission can be replayed and audited.
-
-## Development
-
-```sh
-pnpm test
-pnpm typecheck
-pnpm lint
-pnpm format:check
-pnpm build
-node scripts/release-check.mjs
-```
-
-Benchmark fixtures:
-
-```sh
-node benchmarks/pitcrew-core/run.mjs
-```
-
-The live acceptance script `node scripts/live-acceptance.mjs` runs a real end-to-end mission with the real Codex CLI and a really failing fixture. It costs real model calls, so it is separate from the regular test suite.
+Full list: [docs/limitations.md](docs/limitations.md). Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) before your first change.
-
-Security issues go to [SECURITY.md](SECURITY.md). Everything here is MIT licensed, runs locally, and requires no account or telemetry.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) before your first change. Security issues go to [SECURITY.md](SECURITY.md). MIT licensed, local-only, no account and no telemetry.

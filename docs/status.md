@@ -1,6 +1,6 @@
 # Status
 
-Current state: milestones 0 through 15 are implemented. Release-gate evidence is recorded in [validation/release-gate.md](validation/release-gate.md); ten of eleven gates pass and a clean macOS installation remains NOT_PROVEN. See [roadmap.md](roadmap.md) and [validation/features-7-15.md](validation/features-7-15.md).
+Current state: milestones 0 through 15 are implemented. Release-gate evidence is recorded in [validation/release-gate.md](validation/release-gate.md); ten of eleven gates pass and a clean macOS installation remains NOT_PROVEN. The module-by-module audit is [modules.md](modules.md). See also [roadmap.md](roadmap.md) and [validation/features-7-15.md](validation/features-7-15.md).
 
 ## Delivered
 
@@ -23,7 +23,15 @@ Current state: milestones 0 through 15 are implemented. Release-gate evidence is
 | 14        | Competition profile `profiles/g4/`                                                         | shipped                      |
 | 15        | Release hardening documentation, release-check script and gate evidence                    | shipped, one gate NOT_PROVEN |
 
-The deterministic suite currently passes 92 tests across 16 files. OpenPitStop strict verification on the clean source commit reports OK, CLEAN integrity, TRUSTWORTHY honesty and 92/92 tests.
+All 20 workspace packages build. The deterministic suite passes 92 tests across 16 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification on a clean source commit is recorded in [validation/release-gate.md](validation/release-gate.md).
+
+## Modules
+
+The audit in [modules.md](modules.md) lists all 17 packages and 3 apps with their responsibility and the test or acceptance path that exercises each. Most modules have direct deterministic coverage. Three gaps are recorded rather than hidden:
+
+- `orchestrator` full-mission behaviour is exercised by live acceptance, not CI.
+- `apps/cli` lifecycle and rendering have acceptance and manual coverage, not a dedicated unit test.
+- `apps/desktop` interaction is not covered by browser automation; static serving and the page title are asserted in `daemon.test.ts`.
 
 ## Live evidence
 
@@ -33,17 +41,17 @@ Milestone 6's hero fixture is a real duplicate-checkout race. The racy candidate
 
 Milestone 9's browser acceptance reproduces a seeded checkout recovery defect twice against the buggy page and verifies the fixed page with a passing check sequence and accessibility audit. Raw artifacts are written under `.pitcrew/browser-acceptance/`.
 
-Milestone 13's published raw result validates all ten fixture baselines. It does not claim a model comparison.
+Milestone 13's latest raw result is `benchmarks/pitcrew-core/results/run-2026-11-24T07-20-08-264Z.json`: ten of ten fixture baselines `MATCH` on clean commit `46f119b`, `dirty: false`, `contenders: []`. It validates the fixtures and harness only; it does not claim a model comparison.
 
 ## Known limitations
 
 - Live model missions could not be re-recorded in this environment because the Codex CLI was unavailable; prior live runs remain the standing evidence.
-- The published benchmark results validate fixtures and harness behavior only; no model-backed contender was executed.
+- The published benchmark results validate fixtures and harness behaviour only; no model-backed contender was executed.
 - Browser QA depends on a locally installed Chrome or Edge. Observe mode requires a desktop session.
 - The referee always runs on the host; a containerized referee is not implemented yet.
 - macOS clean-machine installation has not been verified locally; CI covers Windows and Linux, and the macOS gate is NOT_PROVEN.
-- Mission Control is a local web interface, not a packaged native desktop application.
+- Mission Control is a local web interface, not a packaged native desktop application; UI interaction is not covered by an automated browser test.
 
 ## CI
 
-Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks.
+Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks. The latest docs-only commit `46f119b` is green on both.

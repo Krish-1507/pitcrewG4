@@ -3,7 +3,7 @@
 This profile maps the competition path onto the same mission runtime used by development: context collection, candidate identity, bounded budgets, optional Arena branching and the independent OpenPitStop gate.
 
 ```bash
-pitcrew --config profiles/g4/profile.json --repo . --state .pitcrew "<mission>"
+pnpm pitcrew --config profiles/g4/profile.json --state .pitcrew --repo . "<mission>"
 ```
 
 ## Included
@@ -16,7 +16,7 @@ pitcrew --config profiles/g4/profile.json --repo . --state .pitcrew "<mission>"
 
 ## Excluded
 
-- Desktop Mission Control.
+- Desktop packaging and the daemon-served Mission Control web UI.
 - Provider gateway failover and additional provider routes.
 - Non-essential integrations and model profiles.
 

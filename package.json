@@ -13,6 +13,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && node scripts/check-boundaries.mjs",
     "build": "turbo run build",
+    "pitcrew": "node apps/cli/dist/index.js",
+    "onboard": "node scripts/onboard.mjs",
+    "bench": "node benchmarks/pitcrew-core/run.mjs",
+    "referee": "openpitstop scan && openpitstop verify",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
