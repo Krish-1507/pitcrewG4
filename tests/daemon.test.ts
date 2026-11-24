@@ -207,12 +207,19 @@ it('runs controlled blindspot mutations only inside a disposable worktree', asyn
     };
     expect(report.findings[0]?.outcome).toBe('survived');
     expect(report.verificationDebt).toEqual(['drop-anonymous-check']);
-    let leftover = await git(root, ['worktree', 'list', '--porcelain'], signal);
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (leftover.trim().split(/\r?\n\r?\n/).length === 1) break;
+    let leftover = '';
+    let listError: unknown = null;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      try {
+        leftover = await git(root, ['worktree', 'list', '--porcelain'], signal);
+        listError = null;
+        if (leftover.trim().split(/\r?\n\r?\n/).length === 1) break;
+      } catch (error) {
+        listError = error;
+      }
       await new Promise((done) => setTimeout(done, 100));
-      leftover = await git(root, ['worktree', 'list', '--porcelain'], signal);
     }
+    if (listError) throw listError;
     expect(leftover.trim().split(/\r?\n\r?\n/)).toHaveLength(1);
   } finally {
     await daemon.close();
