@@ -1,6 +1,6 @@
 # Roadmap
 
-Milestones 0 through 15 are implemented. Release-gate verification is recorded in [validation/release-gate.md](validation/release-gate.md). The only gate still NOT_PROVEN is a clean macOS installation.
+Milestones 0 through 15 are implemented, plus a post-15 local assistant extension. Release-gate verification is recorded in [validation/release-gate.md](validation/release-gate.md). The only gate still NOT_PROVEN is a clean macOS installation.
 
 Each milestone ships only when the deterministic suite passes and the recorded evidence is linked from [validation/features-7-15.md](validation/features-7-15.md).
 
@@ -20,6 +20,10 @@ Each milestone ships only when the deterministic suite passes and the recorded e
 12. **Merge certificate and replay** — a digest-bound certificate and append-only replay.
 13. **Skills** — nine installed, validated skill manifests and instructions.
 14. **Benchmark and competition profile** — a ten-category harness with published raw fixture results and `profiles/g4/`.
+
+## Post-15 local assistant extension
+
+The current working tree adds Quick Assistant, opt-in web research, global/project memory notes, and saved assistants. Quick Assistant is explicitly a draft path and does not change the verification standard. The extension has deterministic coverage in `assistant-features.test.ts`; it does not yet have an OpenPitStop verdict, so the recorded strict verification remains bound to `1c21762`.
 
 ## Delivered milestone detail
 

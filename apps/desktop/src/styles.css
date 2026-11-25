@@ -471,3 +471,44 @@ a {
   font-size: 13px;
   padding: 8px 0;
 }
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+}
+label.check input {
+  width: auto;
+}
+pre.quick-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin: 0;
+}
+.sources {
+  display: grid;
+  gap: 10px;
+  padding-left: 18px;
+}
+.sources li {
+  display: grid;
+  gap: 3px;
+}
+.ok-text {
+  color: var(--verified);
+}
+a.button {
+  display: inline-block;
+  font: 600 12.5px var(--mono);
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  text-decoration: none;
+}
+a.button:hover {
+  border-color: var(--accent);
+}

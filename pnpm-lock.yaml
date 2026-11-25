@@ -80,6 +80,9 @@ importers:
       '@pitcrew/model-gateway':
         specifier: workspace:*
         version: link:../../packages/model-gateway
+      '@pitcrew/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@pitcrew/orchestrator':
         specifier: workspace:*
         version: link:../../packages/orchestrator

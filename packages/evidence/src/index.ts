@@ -9,6 +9,8 @@ import {
   registeredProviderSchema,
   configSchema,
   missionSchema,
+  memoryNoteSchema,
+  assistantSchema,
   PitCrewError,
   repositoryGraphSchema,
   repoFactSchema,
@@ -21,6 +23,8 @@ import type {
   StoredEvent,
   RepositoryGraph,
   RepoFact,
+  MemoryNote,
+  Assistant,
 } from '@pitcrew/protocol';
 import { isTerminal, reduceMission } from '@pitcrew/mission-runtime';
 import { redact, redactObject, assertNoSecrets } from '@pitcrew/observability';
@@ -41,6 +45,12 @@ CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,root_path TEXT NOT NULL 
 CREATE TABLE IF NOT EXISTS repository_snapshots(root_path TEXT PRIMARY KEY, head TEXT NOT NULL, artifact TEXT NOT NULL REFERENCES artifacts(sha256), observed_at_ms INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS repo_facts(project_root TEXT NOT NULL,id TEXT NOT NULL,fact_json TEXT NOT NULL,stale INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(project_root,id));
 INSERT OR IGNORE INTO schema_migrations VALUES(2);
+`;
+
+const migration4 = `
+CREATE TABLE IF NOT EXISTS memory_notes(id TEXT PRIMARY KEY,scope TEXT NOT NULL CHECK(scope IN ('global','project')),project_id TEXT,project_root TEXT,note TEXT NOT NULL,created_at_ms INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS assistants(id TEXT PRIMARY KEY,name TEXT NOT NULL,prompt TEXT NOT NULL,scope TEXT NOT NULL CHECK(scope IN ('global','project')),project_id TEXT,route_id TEXT,model TEXT,created_at_ms INTEGER NOT NULL);
+INSERT OR IGNORE INTO schema_migrations VALUES(4);
 `;
 
 const rowSchema = z.object({
@@ -74,6 +84,7 @@ export class EvidenceStore {
     db.exec(`CREATE TABLE IF NOT EXISTS providers(id TEXT PRIMARY KEY,config_json TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS model_profiles(id TEXT PRIMARY KEY,config_json TEXT NOT NULL);
       INSERT OR IGNORE INTO schema_migrations VALUES(3);`);
+    db.exec(migration4);
     return new EvidenceStore(root, db, [...secrets]);
   }
   addSecret(value: string): void {
@@ -291,6 +302,179 @@ export class EvidenceStore {
       .parse(
         this.db.prepare('SELECT root_path FROM projects WHERE id=?').get(id),
       ).root_path;
+  }
+
+  addMemoryNote(input: {
+    text: string;
+    scope: 'global' | 'project';
+    projectId?: string | null;
+  }): MemoryNote {
+    const text = input.text.trim();
+    if (!text) throw new PitCrewError('CONFIGURATION', 'Memory note is empty.');
+    assertNoSecrets(text, this.secrets);
+    let projectId: string | null = null;
+    let projectRoot: string | null = null;
+    if (input.scope === 'project') {
+      if (!input.projectId)
+        throw new PitCrewError(
+          'CONFIGURATION',
+          'Project memory requires a project.',
+        );
+      projectId = input.projectId;
+      projectRoot = this.projectRoot(projectId);
+    }
+    const note = memoryNoteSchema.parse({
+      id: 'mem_' + randomUUID(),
+      scope: input.scope,
+      projectId,
+      projectRoot,
+      text,
+      createdAt: Date.now(),
+    });
+    this.db
+      .prepare(
+        'INSERT INTO memory_notes(id,scope,project_id,project_root,note,created_at_ms) VALUES(?,?,?,?,?,?)',
+      )
+      .run(
+        note.id,
+        note.scope,
+        note.projectId,
+        note.projectRoot,
+        note.text,
+        note.createdAt,
+      );
+    return note;
+  }
+  memoryNotes(projectId?: string): MemoryNote[] {
+    const rows = projectId
+      ? this.db
+          .prepare(
+            "SELECT * FROM memory_notes WHERE scope='global' OR (scope='project' AND project_id=?) ORDER BY created_at_ms DESC,id",
+          )
+          .all(projectId)
+      : this.db
+          .prepare('SELECT * FROM memory_notes ORDER BY created_at_ms DESC,id')
+          .all();
+    return rows.map((row) => this.memoryNote(row));
+  }
+  memoryNotesForRoot(root: string): MemoryNote[] {
+    const normalized = realpathSync.native(root);
+    return this.db
+      .prepare(
+        "SELECT * FROM memory_notes WHERE scope='global' OR (scope='project' AND project_root=?) ORDER BY created_at_ms DESC,id",
+      )
+      .all(normalized)
+      .map((row) => this.memoryNote(row));
+  }
+  deleteMemoryNote(id: string): boolean {
+    return (
+      this.db.prepare('DELETE FROM memory_notes WHERE id=?').run(id).changes > 0
+    );
+  }
+  private memoryNote(row: unknown): MemoryNote {
+    const value = z
+      .object({
+        id: z.string(),
+        scope: z.enum(['global', 'project']),
+        project_id: z.string().nullable(),
+        project_root: z.string().nullable(),
+        note: z.string(),
+        created_at_ms: z.number(),
+      })
+      .parse(row);
+    return memoryNoteSchema.parse({
+      id: value.id,
+      scope: value.scope,
+      projectId: value.project_id,
+      projectRoot: value.project_root,
+      text: value.note,
+      createdAt: value.created_at_ms,
+    });
+  }
+
+  addAssistant(input: {
+    name: string;
+    prompt: string;
+    scope: 'global' | 'project';
+    projectId?: string | null;
+    routeId?: string | null;
+    model?: string | null;
+  }): Assistant {
+    let projectId: string | null = null;
+    if (input.scope === 'project') {
+      if (!input.projectId)
+        throw new PitCrewError(
+          'CONFIGURATION',
+          'Project assistant requires a project.',
+        );
+      projectId = input.projectId;
+      this.projectRoot(projectId);
+    }
+    const assistant = assistantSchema.parse({
+      id: 'ast_' + randomUUID(),
+      name: input.name.trim(),
+      prompt: input.prompt.trim(),
+      scope: input.scope,
+      projectId,
+      routeId: input.routeId ?? null,
+      model: input.model ?? null,
+      createdAt: Date.now(),
+    });
+    assertNoSecrets(JSON.stringify(assistant), this.secrets);
+    this.db
+      .prepare(
+        'INSERT INTO assistants(id,name,prompt,scope,project_id,route_id,model,created_at_ms) VALUES(?,?,?,?,?,?,?,?)',
+      )
+      .run(
+        assistant.id,
+        assistant.name,
+        assistant.prompt,
+        assistant.scope,
+        assistant.projectId,
+        assistant.routeId,
+        assistant.model,
+        assistant.createdAt,
+      );
+    return assistant;
+  }
+  assistants(): Assistant[] {
+    return this.db
+      .prepare('SELECT * FROM assistants ORDER BY created_at_ms DESC,id')
+      .all()
+      .map((row) => this.assistantRow(row));
+  }
+  assistant(id: string): Assistant | undefined {
+    const row = this.db.prepare('SELECT * FROM assistants WHERE id=?').get(id);
+    return row ? this.assistantRow(row) : undefined;
+  }
+  deleteAssistant(id: string): boolean {
+    return (
+      this.db.prepare('DELETE FROM assistants WHERE id=?').run(id).changes > 0
+    );
+  }
+  private assistantRow(row: unknown): Assistant {
+    const value = z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        prompt: z.string(),
+        scope: z.enum(['global', 'project']),
+        project_id: z.string().nullable(),
+        route_id: z.string().nullable(),
+        model: z.string().nullable(),
+        created_at_ms: z.number(),
+      })
+      .parse(row);
+    return assistantSchema.parse({
+      id: value.id,
+      name: value.name,
+      prompt: value.prompt,
+      scope: value.scope,
+      projectId: value.project_id,
+      routeId: value.route_id,
+      model: value.model,
+      createdAt: value.created_at_ms,
+    });
   }
 
   close(): void {

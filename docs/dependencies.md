@@ -20,6 +20,8 @@ Repository intelligence: @vscode/tree-sitter-wasm 0.3.1 (MIT, runtime) bundles t
 
 Model gateway: @napi-rs/keyring 2.1.0 (MIT, runtime) provides OS credential storage using prebuilt native bindings. Linux explicitly uses Secret Service without volatile fallback. Configuration: yaml 2.9.1 (ISC, runtime) parses the documented YAML format with aliases disabled and strict Zod validation.
 
+Web research and Quick Assistant add no dependency. They use the Node.js built-in `fetch`, `AbortSignal`, `node:http`, and the existing Zod schemas. SearXNG and Brave are external services configured by environment variable. Memory notes and assistants use the existing Node SQLite store and migration 4.
+
 Browser lab: playwright-core 1.64.1 (Apache-2.0, runtime) drives a locally installed Chrome or Edge; no browser is downloaded by the package. axe-core 4.14.0 (MPL-2.0, runtime) is injected into pages for accessibility audits. Both are isolated in `packages/browser-lab`.
 
 Global CLI artifact: the packaged `@pitcrew/cli` declares `openpitstop` as an

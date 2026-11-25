@@ -1,6 +1,6 @@
 # Status
 
-Current state: milestones 0 through 15 are implemented. Release-gate evidence is recorded in [validation/release-gate.md](validation/release-gate.md); ten of eleven gates pass and a clean macOS installation remains NOT_PROVEN. The module-by-module audit is [modules.md](modules.md). See also [roadmap.md](roadmap.md) and [validation/features-7-15.md](validation/features-7-15.md).
+Current state: milestones 0 through 15 are implemented, followed by a local assistant extension for Quick Assistant, opt-in web research, memory notes and saved assistants. Release-gate evidence is recorded in [validation/release-gate.md](validation/release-gate.md); ten of eleven gates pass and a clean macOS installation remains NOT_PROVEN. The module-by-module audit is [modules.md](modules.md). See also [roadmap.md](roadmap.md) and [validation/features-7-15.md](validation/features-7-15.md).
 
 ## Delivered
 
@@ -25,7 +25,19 @@ Current state: milestones 0 through 15 are implemented. Release-gate evidence is
 
 A user-profile install path is implemented in `install.ps1` and `install.sh`: it builds the workspace, packages the CLI, installs into a user-owned prefix, creates a Desktop launcher, and changes only user `PATH` entries. The npm artifact is prepared as `@pitcrew/cli`; publication is pending, so the source installer is the supported path today.
 
-All 20 workspace packages build. The deterministic suite passes 93 tests across 16 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification of clean source commit `1c21762` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 93/93 tests; evidence is recorded in [validation/release-gate.md](validation/release-gate.md).
+All 20 workspace packages build. The current deterministic suite passes 98 tests across 17 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification of clean source commit `1c21762` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 93/93 tests; evidence is recorded in [validation/release-gate.md](validation/release-gate.md). The local assistant extension is not yet independently verified by OpenPitStop.
+
+## Local assistant extension
+
+The post-milestone extension adds:
+
+- a Quick Assistant CLI/UI path (`pitcrew quick`, `pitcrew app --quick`), clipboard read and Windows `Ctrl+Alt+P`;
+- opt-in web research through SearXNG or Brave, with no request when unconfigured;
+- global and project memory notes stored in SQLite migration 4;
+- saved assistants with prompt digest events, optional route/model, and project scoping;
+- daemon endpoints and Mission Control views for all four features.
+
+The extension is covered by `assistant-features.test.ts` and the existing suite. It is a draft/context feature, not a new verification path. It has no new OpenPitStop verdict yet; the recorded strict verdict remains `1c21762`.
 
 ## Modules
 
@@ -53,7 +65,11 @@ Milestone 13's latest raw result is `benchmarks/pitcrew-core/results/run-2026-11
 - The referee always runs on the host; a containerized referee is not implemented yet.
 - macOS clean-machine installation has not been verified locally; CI covers Windows and Linux, and the macOS gate is NOT_PROVEN.
 - Mission Control is a local web interface, not a packaged native desktop application; UI interaction is not covered by an automated browser test.
+- Quick Assistant is a draft path, not verification. Windows hotkey registration depends on the installer shortcut; Linux binding is manual; macOS is unproven.
+- Web research is disabled by default and has no live provider acceptance run recorded.
+- Memory notes and assistants have no embeddings, sync, or automatic summarization.
+- The current assistant-feature changes have deterministic tests but no new OpenPitStop verdict.
 
 ## CI
 
-Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks. Commit `8e11062` is green on both (run `45351565624`).
+Windows and Linux CI runs on every push: build, test, typecheck, lint and format checks. Commit `3a6bc41` is green on both (run `45403194168`). The assistant-feature changes are not yet committed or CI-verified.

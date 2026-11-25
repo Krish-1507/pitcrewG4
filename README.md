@@ -24,6 +24,7 @@ PitCrew does not push, merge, or deploy as part of the automatic path. It is loc
 - pnpm 11.19.0 for the source installer
 - Docker, **or** explicit consent to reduced isolation
 - A model: the official [Codex CLI](https://developers.openai.com/codex/) installed and authenticated by you, or a local/OpenAI-compatible endpoint such as Ollama
+- Optional: a local SearXNG instance or a Brave Search API key for opt-in web research
 
 The pinned `openpitstop` package is installed with PitCrew and run as a separate process.
 
@@ -39,7 +40,7 @@ From a checkout:
 .\install.ps1
 ```
 
-The installer defaults to `%USERPROFILE%\PitCrew`, creates a **PitCrew** Start Menu entry, and never requests admin rights. You can pass `-InstallRoot D:\PitCrew`, `-Source <checkout>`, or `-SkipPath`.
+The installer defaults to `%USERPROFILE%\PitCrew`, creates **PitCrew** and **PitCrew Quick Assistant** Start Menu entries, registers `Ctrl+Alt+P` for Quick Assistant, and never requests admin rights. You can pass `-InstallRoot D:\PitCrew`, `-Source <checkout>`, `-SkipPath`, or `-NoShortcut`.
 
 ### Linux and macOS
 
@@ -49,7 +50,7 @@ From a checkout:
 ./install.sh
 ```
 
-The installer defaults to `$HOME/PitCrew`, creates `pitcrew-desktop`, and adds a Linux application entry where supported. On macOS this source path is `NOT_PROVEN`; CI covers Linux and Windows.
+The installer defaults to `$HOME/PitCrew`, creates `pitcrew-desktop` and `pitcrew-quick`, and adds a Linux application entry with a Quick Assistant action where supported. Bind `pitcrew-quick` to a desktop hotkey yourself. On macOS this source path is `NOT_PROVEN`; CI covers Linux and Windows.
 
 The CLI is packaged as `@pitcrew/cli` for global npm distribution. Publication is pending, so the README does not claim an npm command that would currently fail. To install a locally built tarball:
 
@@ -118,6 +119,22 @@ Mission Control shows real daemon events: mission state, approvals, candidate ar
 
 The token stays in the URL fragment and browser session. API requests require it, and cross-origin requests are rejected.
 
+## Quick Assistant, memory and web research
+
+```sh
+pitcrew app --quick
+pitcrew quick
+pitcrew research "current documentation for the configured library"
+pitcrew memory add --repo . "Use pnpm for this repository"
+pitcrew assistant add --name Reviewer --prompt "Review for small, testable changes"
+```
+
+`pitcrew app --quick` (or `pitcrew quick`) opens a focused view that reads clipboard text on request and returns a draft from the configured model. The Windows installer registers `Ctrl+Alt+P`; on Linux, bind `pitcrew-quick` in your desktop environment. Quick Assistant output is a draft, not independent verification, and it never marks work `VERIFIED`.
+
+Memory notes are short, user-authored context stored in SQLite as global or project notes. Assistants are saved prompts with an optional route and model override. Project assistants are limited to their project; Quick Assistant only accepts global assistants. Neither can change policy, tools, or the verification standard.
+
+Web research is opt-in. Set `PITCREW_SEARXNG_URL` (HTTPS, or HTTP on loopback) or `PITCREW_BRAVE_SEARCH_API_KEY` before starting the daemon. Only the normalized search query leaves the machine; results are untrusted context. With no provider configured, research reports disabled and makes no network call. Research is an explicit endpoint and quick-assistant option, not an autonomous model tool loop.
+
 ## Commands
 
 | Command                        | What it does                                               |
@@ -125,7 +142,12 @@ The token stays in the URL fragment and browser session. API requests require it
 | `setup`                        | Write or replace the trusted user configuration            |
 | `doctor`                       | Check required executables and services                    |
 | `app`                          | Serve Mission Control and open the browser                 |
+| `app --quick` / `quick`        | Open the Quick Assistant; Windows hotkey `Ctrl+Alt+P`      |
 | `ui`                           | Serve Mission Control until `Ctrl+C`                       |
+| `research "<query>"`           | Search with the configured opt-in web provider             |
+| `memory list\|add\|delete`     | Manage global or project memory notes                      |
+| `assistants`                   | List saved assistant prompts and model settings            |
+| `assistant add\|delete`        | Manage global or project assistants                        |
 | `open`                         | Inspect a repository read-only                             |
 | `replay <mis_id>`              | Print a persisted mission timeline                         |
 | `diff <mis_id>`                | Print a candidate diff and its evidence identity           |
@@ -177,19 +199,19 @@ This is fixture-validation mode. It proves the harness reproduces each intended 
 
 ## Modules
 
-PitCrew is 17 packages and 3 apps. The deterministic suite passes 93 tests in 16 files. Coverage is not uniform: `orchestrator`, `apps/cli`, and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
+PitCrew is 17 packages and 3 apps. The deterministic suite passes 98 tests in 17 files. Coverage is not uniform: `orchestrator`, `apps/cli`, and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
 
-| Area               | Packages                                   | Main evidence                                          |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------ |
-| Protocol and state | `protocol`, `mission-runtime`              | `protocol.test.ts`, `mission-control.test.ts`          |
-| Roles and planning | `agents`, `orchestrator`                   | `specialists.test.ts`; acceptance script               |
-| Models and policy  | `model-gateway`, `policy-engine`, `config` | `model-gateway.test.ts`, `security.test.ts`            |
-| Isolation          | `sandbox`, `candidate-manager`             | `candidate.test.ts`, `arena.test.ts`                   |
-| Evidence           | `evidence`, `openpitstop-adapter`          | `certificate.test.ts`, `arena.test.ts`                 |
-| Intelligence       | `repo-intelligence`, `blindspot`, `memory` | `repository-intelligence.test.ts`, `blindspot.test.ts` |
-| Skills             | `skills`                                   | `skills.test.ts`                                       |
-| Browser QA         | `browser-lab`                              | `browser-lab.test.ts`, browser acceptance              |
-| Applications       | `daemon`, `cli`, `desktop`                 | `daemon.test.ts`; CLI and UI acceptance                |
+| Area               | Packages                                   | Main evidence                                                         |
+| ------------------ | ------------------------------------------ | --------------------------------------------------------------------- |
+| Protocol and state | `protocol`, `mission-runtime`              | `protocol.test.ts`, `mission-control.test.ts`                         |
+| Roles and planning | `agents`, `orchestrator`                   | `specialists.test.ts`; acceptance script                              |
+| Models and policy  | `model-gateway`, `policy-engine`, `config` | `model-gateway.test.ts`, `security.test.ts`                           |
+| Isolation          | `sandbox`, `candidate-manager`             | `candidate.test.ts`, `arena.test.ts`                                  |
+| Evidence           | `evidence`, `openpitstop-adapter`          | `certificate.test.ts`, `arena.test.ts`, `assistant-features.test.ts`  |
+| Intelligence       | `repo-intelligence`, `blindspot`, `memory` | `repository-intelligence.test.ts`, `blindspot.test.ts`                |
+| Skills             | `skills`                                   | `skills.test.ts`                                                      |
+| Browser QA         | `browser-lab`                              | `browser-lab.test.ts`, browser acceptance                             |
+| Applications       | `daemon`, `cli`, `desktop`                 | `daemon.test.ts`, `assistant-features.test.ts`; CLI and UI acceptance |
 
 ## Development
 
@@ -235,6 +257,10 @@ Neither acceptance script is part of the deterministic suite.
 
 - macOS clean-install verification is `NOT_PROVEN`; CI covers Windows and Linux.
 - npm publication of `@pitcrew/cli` is pending; the source installer is the supported path today.
+- Quick Assistant output is a draft and is never verification. Its Windows hotkey comes from the Start Menu shortcut; Linux hotkey binding is manual, and macOS is unproven.
+- Web research is disabled by default and requires an explicit SearXNG or Brave configuration. It is not an autonomous model tool loop.
+- Memory and assistants are local SQLite records without embeddings, sync, or automatic summarization.
+- The current assistant-feature changes have deterministic tests but no new OpenPitStop evidence yet; the recorded OpenPitStop verdict belongs to `1c21762`.
 - Benchmark results are fixture validation only; no model contender was run.
 - Browser QA uses a local Chrome or Edge and does not download one.
 - The referee runs on the host; a containerized referee is not implemented.

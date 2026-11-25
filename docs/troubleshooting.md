@@ -37,6 +37,24 @@ The daemon binds to `127.0.0.1` and requires the bearer token printed at startup
 
 `pitcrew app` and `pitcrew ui` keep running until you press `Ctrl+C` or the daemon exits. If the command returns immediately, check the printed error (for example a state directory lock held by another daemon) and that OpenPitStop and the model executable exist.
 
+## Quick Assistant does not open or the hotkey is missing
+
+Run `pitcrew app --quick` or `pitcrew quick` directly. The Windows installer creates a **PitCrew Quick Assistant** Start Menu shortcut with `Ctrl+Alt+P`; if another application owns that shortcut, create a new shortcut to `pitcrew-quick.cmd` and assign a different key. On Linux, bind `$HOME/PitCrew/bin/pitcrew-quick` in your desktop environment. macOS hotkey behavior is not verified.
+
+Clipboard auto-read requires browser permission. If the page reports permission unavailable, paste the text manually; the rest of the Quick Assistant still works.
+
+## Quick Assistant rejects my project assistant
+
+Quick Assistant accepts global assistants only. Create the assistant with global scope, or use the project assistant from a mission in that project.
+
+## Web research is disabled
+
+Set `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY` before starting the daemon. `pitcrew doctor` and `GET /v1/research` report the active state. SearXNG must use HTTPS or HTTP on loopback, with no embedded credentials. Brave uses the fixed `api.search.brave.com` endpoint. Only the normalized query leaves the machine.
+
+## A memory note or assistant prompt is rejected
+
+PitCrew rejects text containing a configured provider or search secret. Remove the secret and reference the credential by environment variable or keychain instead. Memory notes are limited to 4000 characters and assistant prompts to 8000.
+
 ## Browser QA cannot find a browser
 
 Install Chrome or Edge, or set `PITCREW_BROWSER_EXECUTABLE` to the executable path. Targets must be loopback unless `PITCREW_BROWSER_ALLOW_HOSTS` authorizes the host.

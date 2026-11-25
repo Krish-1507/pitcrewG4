@@ -70,6 +70,14 @@ if "%REPO%"=="" set "REPO=%USERPROFILE%"
 "@
 Set-Content -LiteralPath $launcher -Value $launcherBody -Encoding ASCII
 
+$quickLauncher = Join-Path $BinRoot 'pitcrew-quick.cmd'
+$quickLauncherBody = @"
+@echo off
+setlocal
+"$NpmPrefix\pitcrew.cmd" app --quick --repo "%USERPROFILE%"
+"@
+Set-Content -LiteralPath $quickLauncher -Value $quickLauncherBody -Encoding ASCII
+
 if (-not $SkipPath) {
   $current = [Environment]::GetEnvironmentVariable('Path', 'User')
   $parts = @($current -split ';' | Where-Object { $_ })
@@ -88,6 +96,19 @@ if (-not $NoShortcut) {
   $shortcut.WorkingDirectory = $env:USERPROFILE
   $shortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,13"
   $shortcut.Save()
+
+  $quickShortcutPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\PitCrew Quick Assistant.lnk'
+  try {
+    $quickShortcut = $shell.CreateShortcut($quickShortcutPath)
+    $quickShortcut.TargetPath = $quickLauncher
+    $quickShortcut.WorkingDirectory = $env:USERPROFILE
+    $quickShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,13"
+    $quickShortcut.WindowStyle = 7
+    $quickShortcut.Hotkey = 'CTRL+ALT+P'
+    $quickShortcut.Save()
+  } catch {
+    Write-Warning 'Could not register Ctrl+Alt+P. Create a shortcut to pitcrew-quick.cmd manually.'
+  }
 }
 
 if (-not $NoSetup) {
@@ -104,6 +125,10 @@ Write-Host ''
 Write-Host "PitCrew installed under $InstallRoot"
 Write-Host "CLI:     $(Join-Path $NpmPrefix 'pitcrew.cmd')"
 Write-Host "Desktop: $launcher"
+Write-Host "Quick:   $quickLauncher"
 Write-Host 'Open a new terminal, then run: pitcrew app'
-if (-not $NoShortcut) { Write-Host 'Start Menu shortcut: PitCrew' }
+if (-not $NoShortcut) {
+  Write-Host 'Start Menu shortcuts: PitCrew and PitCrew Quick Assistant'
+  Write-Host 'Global hotkey: Ctrl+Alt+P opens the Quick Assistant'
+}
 Write-Host 'Nothing was installed system-wide and no admin rights were used.'

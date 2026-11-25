@@ -10,10 +10,22 @@ PitCrew is an early development build. The following limitations are current fac
 
 ## Test coverage
 
-- The deterministic suite is 93 tests in 16 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
+- The deterministic suite is 98 tests in 17 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
 - `orchestrator` full-mission behaviour is exercised by the live acceptance script, not CI.
 - `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test.
 - A live mission requires an installed, authenticated model provider.
+
+## Local assistant features
+
+- Quick Assistant output is a draft from the configured model. It is never `VERIFIED` and is not independent evidence.
+- Quick Assistant does not persist answers. Clipboard auto-read depends on browser permission; manual paste is always available.
+- The Windows installer registers `Ctrl+Alt+P` through a Start Menu shortcut. Linux users must bind `pitcrew-quick` manually. macOS hotkey behavior is unproven.
+- Web research is disabled by default. It requires `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY`; with neither set, no search request is made.
+- Web research is an explicit endpoint and Quick Assistant option, not an autonomous model tool loop. Search results are untrusted context.
+- Memory notes and assistant prompts are local SQLite records. There are no embeddings, semantic search, sync, or automatic summarization.
+- Quick Assistant accepts global assistants only. Project assistants are restricted to their project.
+- Assistant route and model overrides can fail if the selected route is no longer eligible. A configured routing profile needs a route with the `quick-assistant` role for Quick Assistant.
+- The current assistant-feature changes have deterministic coverage but no new OpenPitStop verdict. The recorded OpenPitStop evidence is for `1c21762`.
 
 ## Models and benchmarks
 

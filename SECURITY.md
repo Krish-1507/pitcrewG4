@@ -15,6 +15,9 @@ Response time is best effort until a maintained stable release is published.
 - The agent edits isolated Git worktrees, never your baseline checkout.
 - Secret values go to the OS keychain, never to the database, logs or evidence files.
 - Model output is treated as untrusted data; policy decides what it may do.
+- Quick Assistant output is a draft, never verification.
+- Web research is disabled by default. When configured, only the normalized query leaves the machine; results are untrusted context.
+- Memory notes and assistant prompts are local SQLite records, not a secret store. Text containing a configured secret is rejected.
 - Historical verdicts are projected as stale when the candidate's bytes change.
 - Verification requires the independent OpenPitStop referee. Without it, the result is NOT_PROVEN.
 - Reduced host isolation is opt-in configuration, never the default. Keep it off for repositories you do not trust.

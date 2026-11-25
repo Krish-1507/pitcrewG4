@@ -42,6 +42,17 @@ export function reduceMission(mission: Mission, event: MissionEvent): Mission {
     return { ...mission, candidate: event.candidate, candidates };
   }
   if (event.type === 'arena.decision') return mission;
+  if (event.type === 'assistant')
+    return {
+      ...mission,
+      assistant: {
+        id: event.assistantId,
+        name: event.name,
+        promptDigest: event.promptDigest,
+        routeId: event.routeId,
+        model: event.model,
+      },
+    };
   if (event.type === 'candidate.eliminated') {
     const eliminations = mission.eliminations ?? [];
     if (!eliminations.some((e) => e.candidateId === event.candidateId))

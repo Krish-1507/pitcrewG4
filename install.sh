@@ -56,6 +56,12 @@ exec "$PITCREW_BIN" app --repo "\${1:-\$HOME}"
 EOF
 chmod +x "$BIN_ROOT/pitcrew-desktop"
 
+cat > "$BIN_ROOT/pitcrew-quick" <<EOF
+#!/bin/sh
+exec "$PITCREW_BIN" app --quick --repo "\$HOME"
+EOF
+chmod +x "$BIN_ROOT/pitcrew-quick"
+
 add_path_line() {
   file="$1"
   [ -f "$file" ] || return 0
@@ -77,6 +83,11 @@ Comment=Local-first AI software engineering orchestration
 Exec=$BIN_ROOT/pitcrew-desktop
 Terminal=true
 Categories=Development;
+Actions=Quick;
+
+[Desktop Action Quick]
+Name=Quick Assistant
+Exec=$BIN_ROOT/pitcrew-quick
 EOF
 fi
 
@@ -90,5 +101,7 @@ echo ''
 echo "PitCrew installed under $INSTALL_ROOT"
 echo "CLI:     $PITCREW_BIN"
 echo "Desktop: $BIN_ROOT/pitcrew-desktop"
+echo "Quick:   $BIN_ROOT/pitcrew-quick"
 echo 'Open a new terminal, then run: pitcrew app'
+echo 'Bind your desktop environment hotkey to pitcrew-quick for a global Quick Assistant.'
 echo 'No system-wide install or admin rights were used.'

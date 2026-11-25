@@ -13,6 +13,7 @@
     "@pitcrew/config": "workspace:*",
     "@pitcrew/evidence": "workspace:*",
     "@pitcrew/model-gateway": "workspace:*",
+    "@pitcrew/observability": "workspace:*",
     "@pitcrew/orchestrator": "workspace:*",
     "@pitcrew/protocol": "workspace:*",
     "@pitcrew/repo-intelligence": "workspace:*",

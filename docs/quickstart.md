@@ -111,6 +111,36 @@ pitcrew app
 
 `app` opens the printed URL in your browser. Use `pitcrew ui` to print the URL and wait without opening a browser. The bearer token travels in the URL fragment and is kept in the browser session. Press `Ctrl+C` to stop the daemon. Cross-origin API requests are rejected.
 
+## Quick Assistant, memory, assistants and research
+
+```sh
+pitcrew app --quick
+pitcrew quick
+pitcrew research "query text"
+pitcrew memory add --repo . "Use pnpm for this repository"
+pitcrew memory list --repo .
+pitcrew assistant add --name Reviewer --prompt "Prefer small, testable changes"
+pitcrew assistants
+```
+
+`app --quick` and `quick` open the Quick Assistant view. It reads clipboard text when the browser permits it, otherwise paste manually, and returns a draft from the configured model. The draft is not verification and cannot mark a mission `VERIFIED`. The Windows installer registers `Ctrl+Alt+P`; on Linux, bind `$HOME/PitCrew/bin/pitcrew-quick` in your desktop environment. macOS hotkey behavior is unproven.
+
+Memory notes are global or project-scoped. Project notes are attached to a project ID and are included only for that repository; global notes apply everywhere. Assistants store a prompt plus optional `route_id` and `model`. Project assistants are rejected by mission creation for another project and by Quick Assistant, which accepts global assistants only. Memory and assistant text is untrusted context, not policy.
+
+Web research is disabled until configured:
+
+```sh
+# Local SearXNG (HTTPS, or HTTP only on loopback)
+PITCREW_SEARXNG_URL=http://127.0.0.1:8080 pitcrew app
+
+# Brave Search
+PITCREW_BRAVE_SEARCH_API_KEY=... pitcrew app
+```
+
+Only the normalized query is sent to the configured provider. Results are treated as untrusted context. `GET /v1/research` reports whether research is configured; `POST /v1/research` performs a query. Quick Assistant uses the first 500 normalized characters as its search query when web search is enabled.
+
+If routing is configured, Quick Assistant requests the `quick-assistant` role. Add that role to an eligible route, or keep the single-provider configuration where routing is absent.
+
 ## Inspection
 
 Commands use the default user configuration and state. Use `--config`/`--state` to override them.

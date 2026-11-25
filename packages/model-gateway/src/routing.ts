@@ -1,6 +1,7 @@
 import { PitCrewError } from '@pitcrew/protocol';
 import type { RuntimeConfig, ProviderConfig } from '@pitcrew/protocol';
 import { providerSecrets } from './index.js';
+import { searchSecrets } from './search.js';
 
 export interface RouteRequest {
   role: string;
@@ -8,6 +9,7 @@ export interface RouteRequest {
   contextChars: number;
   tools: boolean;
   priorFailures: ReadonlySet<string>;
+  preferredId?: string;
 }
 export interface SelectedRoute {
   id: string;
@@ -20,7 +22,9 @@ export function configuredSecrets(config: RuntimeConfig): string[] {
       [
         config.provider,
         ...(config.routing?.providers.map((r) => r.provider) ?? []),
-      ].flatMap(providerSecrets),
+      ]
+        .flatMap(providerSecrets)
+        .concat(searchSecrets()),
     ),
   ];
 }
@@ -62,7 +66,9 @@ export function selectRoute(
     );
   if (routing.profile === 'deep')
     eligible.sort((a, b) => b.maxContextChars - a.maxContextChars);
-  const route = eligible[0];
+  const route = request.preferredId
+    ? eligible.find((candidate) => candidate.id === request.preferredId)
+    : eligible[0];
   if (!route)
     throw new PitCrewError(
       'PROVIDER_UNAVAILABLE',

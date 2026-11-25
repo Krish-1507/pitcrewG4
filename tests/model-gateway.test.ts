@@ -47,6 +47,12 @@ it('routes only configured eligible providers and preserves unknown cost', () =>
   expect(
     selectRoute(config, { ...request, priorFailures: new Set(['one']) }).id,
   ).toBe('two');
+  expect(selectRoute(config, { ...request, preferredId: 'two' }).id).toBe(
+    'two',
+  );
+  expect(() =>
+    selectRoute(config, { ...request, preferredId: 'missing' }),
+  ).toThrow();
   expect(() =>
     selectRoute(config, { ...request, priorFailures: new Set(['one', 'two']) }),
   ).toThrow('No configured route');

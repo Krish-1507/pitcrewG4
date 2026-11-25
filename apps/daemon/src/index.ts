@@ -20,24 +20,37 @@ import { browserScenarioSchema } from '@pitcrew/browser-lab';
 import { runProcess, runSandbox } from '@pitcrew/sandbox';
 import { indexRepository, buildRepoStory } from '@pitcrew/repo-intelligence';
 import {
+  answer,
   configuredSecrets,
   providerSecrets,
   discoverProvider,
   storeCredential,
   deleteCredential,
+  selectRoute,
+  webSearch,
+  searchConfiguration,
 } from '@pitcrew/model-gateway';
 import { validateConfig } from '@pitcrew/config';
+import { assertNoSecrets } from '@pitcrew/observability';
 import {
   blindspotAssumptionSchema,
   blindspotMutationSchema,
   commandSchema,
   providerSchema,
   configSchema,
+  quickRequestSchema,
 } from '@pitcrew/protocol';
 import type { RuntimeConfig } from '@pitcrew/protocol';
 
 const createSchema = z
-  .object({ repo: z.string().min(1), request: z.string().min(1).max(8000) })
+  .object({
+    repo: z.string().min(1),
+    request: z.string().min(1).max(8000),
+    assistant_id: z
+      .string()
+      .regex(/^ast_[a-f0-9-]+$/)
+      .optional(),
+  })
   .strict();
 export interface Daemon {
   url: string;
@@ -166,7 +179,8 @@ export async function startDaemon(
     req: IncomingMessage,
     res: ServerResponse,
   ): Promise<void> {
-    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    const requestUrl = new URL(req.url ?? '/', 'http://127.0.0.1');
+    const path = requestUrl.pathname;
     const asset = req.method === 'GET' ? uiAsset(path) : undefined;
     if (asset) {
       const extension = asset.slice(asset.lastIndexOf('.'));
@@ -314,6 +328,155 @@ export async function startDaemon(
       return;
     }
 
+    if (req.method === 'GET' && path === '/v1/research') {
+      const configured = searchConfiguration();
+      json(res, 200, {
+        configured: Boolean(configured),
+        provider: configured?.provider ?? null,
+      });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/research') {
+      const input = z
+        .object({ query: z.string().min(1).max(500) })
+        .strict()
+        .parse(await body(req));
+      assertNoSecrets(input.query, configuredSecrets(config));
+      const result = await webSearch(input.query, AbortSignal.timeout(20000));
+      json(res, 200, result);
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/quick') {
+      const input = quickRequestSchema.parse(await body(req));
+      assertNoSecrets(input.text, configuredSecrets(config));
+      const assistant = input.assistantId
+        ? store.assistant(input.assistantId)
+        : undefined;
+      if (input.assistantId && !assistant) throw new Error('unknown assistant');
+      if (assistant && assistant.scope !== 'global')
+        throw new Error('Quick Assistant requires a global assistant.');
+      let sources: Awaited<ReturnType<typeof webSearch>>['results'] = [];
+      if (input.web) {
+        const query = input.text.replace(/\s+/g, ' ').trim().slice(0, 500);
+        sources = (await webSearch(query, AbortSignal.timeout(20000))).results;
+      }
+      const route = selectRoute(config, {
+        role: 'quick-assistant',
+        risk: 'low',
+        contextChars: input.text.length + JSON.stringify(sources).length + 2048,
+        tools: false,
+        priorFailures: new Set<string>(),
+        ...(assistant?.routeId ? { preferredId: assistant.routeId } : {}),
+      });
+      const provider = assistant?.model
+        ? { ...route.provider, model: assistant.model }
+        : route.provider;
+      const instruction =
+        input.preset === 'summarize'
+          ? 'Summarize the supplied text in clear prose. Preserve key facts, caveats, and named entities.'
+          : input.preset === 'explain'
+            ? 'Explain the supplied text for a software engineer. Define unfamiliar terms and call out uncertainty.'
+            : 'Translate the supplied text into ' +
+              (input.target ?? 'English') +
+              '. Preserve meaning, code, names, and formatting.';
+      const result = await answer(provider, {
+        request: instruction,
+        context: JSON.stringify({
+          text: input.text,
+          preset: input.preset,
+          target: input.target ?? null,
+          sources,
+        }),
+        directory: resolve(store.root, 'quick', randomUUID()),
+        signal: AbortSignal.timeout(120000),
+        timeoutMs: 120000,
+        ...(assistant?.prompt ? { assistant: assistant.prompt } : {}),
+      });
+      json(res, 200, {
+        answer: result.answer,
+        provider: result.provider,
+        web: input.web,
+        sources,
+      });
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/memory') {
+      const projectId = requestUrl.searchParams.get('project_id') ?? undefined;
+      if (projectId && !/^prj_[a-f0-9-]+$/.test(projectId))
+        throw new Error('invalid project');
+      json(res, 200, { notes: store.memoryNotes(projectId) });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/memory') {
+      const input = z
+        .object({
+          text: z.string().min(1).max(4000),
+          scope: z.enum(['global', 'project']),
+          project_id: z
+            .string()
+            .regex(/^prj_[a-f0-9-]+$/)
+            .optional(),
+        })
+        .strict()
+        .parse(await body(req));
+      const note = store.addMemoryNote({
+        text: input.text,
+        scope: input.scope,
+        projectId: input.project_id ?? null,
+      });
+      json(res, 201, { note });
+      return;
+    }
+    const memoryMatch = /^\/v1\/memory\/(mem_[a-f0-9-]+)$/.exec(path);
+    if (req.method === 'DELETE' && memoryMatch) {
+      json(res, 200, { deleted: store.deleteMemoryNote(memoryMatch[1]!) });
+      return;
+    }
+    if (req.method === 'GET' && path === '/v1/assistants') {
+      json(res, 200, { assistants: store.assistants() });
+      return;
+    }
+    if (req.method === 'POST' && path === '/v1/assistants') {
+      const input = z
+        .object({
+          name: z.string().min(1).max(100),
+          prompt: z.string().min(1).max(8000),
+          scope: z.enum(['global', 'project']),
+          project_id: z
+            .string()
+            .regex(/^prj_[a-f0-9-]+$/)
+            .optional(),
+          route_id: z
+            .string()
+            .regex(/^[a-zA-Z0-9_-]{1,80}$/)
+            .optional(),
+          model: z.string().min(1).max(200).optional(),
+        })
+        .strict()
+        .parse(await body(req));
+      if (
+        input.route_id &&
+        !config.routing?.providers.some((route) => route.id === input.route_id)
+      )
+        throw new Error('unknown model route');
+      const assistant = store.addAssistant({
+        name: input.name,
+        prompt: input.prompt,
+        scope: input.scope,
+        projectId: input.project_id ?? null,
+        routeId: input.route_id ?? null,
+        model: input.model ?? null,
+      });
+      json(res, 201, { assistant });
+      return;
+    }
+    const assistantMatch = /^\/v1\/assistants\/(ast_[a-f0-9-]+)$/.exec(path);
+    if (req.method === 'DELETE' && assistantMatch) {
+      json(res, 200, {
+        deleted: store.deleteAssistant(assistantMatch[1]!),
+      });
+      return;
+    }
     if (req.method === 'GET' && path === '/v1/doctor') {
       const signal = AbortSignal.timeout(15000);
       const commands = [
@@ -356,6 +519,7 @@ export async function startDaemon(
       json(res, 200, {
         capabilities,
         reducedIsolation: config.execution.allowReducedIsolation,
+        webSearch: searchConfiguration() ?? null,
       });
       return;
     }
@@ -483,6 +647,18 @@ export async function startDaemon(
       const input = createSchema.parse(await body(req));
       const normalized = (await import('node:fs/promises')).realpath;
       const root = await normalized(input.repo);
+      const assistant = input.assistant_id
+        ? store.assistant(input.assistant_id)
+        : undefined;
+      if (input.assistant_id && !assistant)
+        throw new Error('unknown assistant');
+      if (assistant?.scope === 'project') {
+        const project = store
+          .projects()
+          .find((candidate) => candidate.root_path === root);
+        if (!project || project.id !== assistant.projectId)
+          throw new Error('assistant does not belong to this project');
+      }
       const key = process.platform === 'win32' ? root.toLowerCase() : root;
       if (projects.has(key)) {
         json(res, 409, {
@@ -501,6 +677,7 @@ export async function startDaemon(
           request: input.request,
           config,
           signal: abort.signal,
+          ...(assistant ? { assistant } : {}),
         });
         const done = running.done.finally(() => {
           active.delete(running.mission.id);

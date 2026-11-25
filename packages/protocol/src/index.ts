@@ -329,6 +329,16 @@ export const eventSchema = z.discriminatedUnion('type', [
     .strict(),
   z
     .object({
+      type: z.literal('assistant'),
+      assistantId: z.string().regex(/^ast_[a-f0-9-]+$/),
+      name: z.string().min(1).max(100),
+      promptDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      routeId: z.string().nullable(),
+      model: z.string().nullable(),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('referee'),
       verdict: verdictSchema,
       digest: z.string(),
@@ -370,6 +380,16 @@ export const missionSchema = z.object({
       candidateId: z.string(),
       digest: z.string(),
       reason: z.string(),
+    })
+    .strict()
+    .optional(),
+  assistant: z
+    .object({
+      id: z.string().regex(/^ast_[a-f0-9-]+$/),
+      name: z.string().min(1).max(100),
+      promptDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      routeId: z.string().nullable(),
+      model: z.string().nullable(),
     })
     .strict()
     .optional(),
@@ -547,6 +567,88 @@ export const registeredProviderSchema = z
   })
   .strict();
 export type RegisteredProvider = z.infer<typeof registeredProviderSchema>;
+
+export const memoryNoteSchema = z
+  .object({
+    id: z.string().regex(/^mem_[a-f0-9-]+$/),
+    scope: z.enum(['global', 'project']),
+    projectId: z
+      .string()
+      .regex(/^prj_[a-f0-9-]+$/)
+      .nullable(),
+    projectRoot: z.string().nullable(),
+    text: z.string().min(1).max(4000),
+    createdAt: z.number().int().nonnegative(),
+  })
+  .strict();
+export type MemoryNote = z.infer<typeof memoryNoteSchema>;
+
+export const assistantSchema = z
+  .object({
+    id: z.string().regex(/^ast_[a-f0-9-]+$/),
+    name: z.string().min(1).max(100),
+    prompt: z.string().min(1).max(8000),
+    scope: z.enum(['global', 'project']),
+    projectId: z
+      .string()
+      .regex(/^prj_[a-f0-9-]+$/)
+      .nullable(),
+    routeId: z
+      .string()
+      .regex(/^[a-zA-Z0-9_-]{1,80}$/)
+      .nullable(),
+    model: z.string().min(1).max(200).nullable(),
+    createdAt: z.number().int().nonnegative(),
+  })
+  .strict();
+export type Assistant = z.infer<typeof assistantSchema>;
+
+export const searchSourceSchema = z
+  .object({
+    title: z.string().min(1).max(500),
+    url: z
+      .string()
+      .url()
+      .max(2048)
+      .refine((value) => {
+        const url = new URL(value);
+        return (
+          ['http:', 'https:'].includes(url.protocol) &&
+          !url.username &&
+          !url.password
+        );
+      }, 'Search sources must be HTTP(S) URLs without credentials.'),
+    description: z.string().max(2000),
+  })
+  .strict();
+export type SearchSource = z.infer<typeof searchSourceSchema>;
+
+export const quickPresetSchema = z.enum(['summarize', 'explain', 'translate']);
+export type QuickPreset = z.infer<typeof quickPresetSchema>;
+
+export const quickRequestSchema = z
+  .object({
+    text: z.string().min(1).max(20000),
+    preset: quickPresetSchema,
+    target: z.string().min(1).max(40).optional(),
+    assistantId: z
+      .string()
+      .regex(/^ast_[a-f0-9-]+$/)
+      .optional(),
+    web: z.boolean().default(false),
+  })
+  .strict();
+export type QuickRequest = z.infer<typeof quickRequestSchema>;
+
+export const quickResultSchema = z
+  .object({
+    answer: z.string().min(1).max(20000),
+    provider: z.string(),
+    web: z.boolean(),
+    sources: z.array(searchSourceSchema).max(8),
+  })
+  .strict();
+export type QuickResult = z.infer<typeof quickResultSchema>;
 
 export const roleSchema = z.enum([
   'ceo',

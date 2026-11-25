@@ -4,9 +4,14 @@ const missionList = document.querySelector('#mission-list');
 const conn = document.querySelector('#conn');
 
 const hashParams = new URLSearchParams(location.hash.replace(/^#\/?/, ''));
+const quickLaunch = hashParams.get('quick') === '1';
 if (hashParams.get('token')) {
   sessionStorage.setItem('pitcrew.token', hashParams.get('token'));
-  history.replaceState(null, '', location.pathname);
+  history.replaceState(
+    null,
+    '',
+    location.pathname + (quickLaunch ? '#/quick' : ''),
+  );
 }
 const token = sessionStorage.getItem('pitcrew.token');
 
@@ -24,18 +29,19 @@ function esc(value) {
   );
 }
 
-async function api(path, body) {
+async function api(path, body, method, timeoutMs = 30000) {
   if (!token)
     throw new Error(
       'No session token. Open Mission Control with the URL printed by "pitcrew ui".',
     );
   const response = await fetch('/v1/' + path, {
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers: {
       authorization: 'Bearer ' + token,
       'content-type': 'application/json',
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok)
@@ -81,6 +87,7 @@ const EVENT_GLYPH = {
   'arena.decision': '⑂',
   delegation: '●',
   model: '✦',
+  assistant: '✦',
   control: '⏯',
 };
 
@@ -113,6 +120,13 @@ function eventMessage(event) {
       return event.role + ' · ' + event.status + ' · ' + event.mode;
     case 'model':
       return event.provider + ' · ' + event.calls + ' call(s)';
+    case 'assistant':
+      return (
+        event.name +
+        ' · prompt ' +
+        event.promptDigest.slice(0, 12) +
+        (event.routeId ? ' · route ' + event.routeId : '')
+      );
     case 'control':
       return event.action;
     default:
@@ -192,7 +206,10 @@ async function home() {
 }
 
 async function newMission() {
-  const data = await api('projects');
+  const [data, stored] = await Promise.all([
+    api('projects'),
+    api('assistants').catch(() => ({ assistants: [] })),
+  ]);
   render(
     '<div class="thread"><div class="head"><div class="title-row"><h2>New mission</h2></div>' +
       '<p class="muted">Runs the configured crew, sandbox and OpenPitStop gate. One mission per repository at a time.</p></div>' +
@@ -204,6 +221,19 @@ async function newMission() {
             esc(project.root_path) +
             '">' +
             esc(project.display_name) +
+            '</option>',
+        )
+        .join('') +
+      '</select></label><label>Assistant<select name="assistant"><option value="">None</option>' +
+      stored.assistants
+        .map(
+          (assistant) =>
+            '<option value="' +
+            esc(assistant.id) +
+            '">' +
+            esc(assistant.name) +
+            ' · ' +
+            esc(assistant.scope) +
             '</option>',
         )
         .join('') +
@@ -219,9 +249,11 @@ async function newMission() {
     .addEventListener('submit', (event) => {
       event.preventDefault();
       const form = new FormData(event.target);
+      const assistantId = form.get('assistant');
       api('missions', {
         repo: form.get('repo'),
         request: form.get('request'),
+        ...(assistantId ? { assistant_id: assistantId } : {}),
       })
         .then((result) => {
           location.hash = '#/mission/' + result.mission_id;
@@ -333,7 +365,15 @@ async function mission(id) {
       esc(record.repo) +
       ' · ' +
       esc(record.id) +
-      '</span><div class="row"><button data-action="pause">Pause</button><button data-action="resume">Resume</button><button class="danger" data-action="cancel">Cancel</button><button data-action="certificate">Merge certificate</button><a href="#/arena/' +
+      '</span>' +
+      (record.assistant
+        ? '<span class="repo">assistant ' +
+          esc(record.assistant.name) +
+          ' · prompt ' +
+          esc(record.assistant.promptDigest.slice(0, 12)) +
+          '</span>'
+        : '') +
+      '<div class="row"><button data-action="pause">Pause</button><button data-action="resume">Resume</button><button class="danger" data-action="cancel">Cancel</button><button data-action="certificate">Merge certificate</button><a href="#/arena/' +
       esc(record.id) +
       '">Arena</a></div></div>' +
       '<div class="verdict ' +
@@ -558,10 +598,20 @@ async function browserLab() {
 }
 
 async function providers() {
-  const data = await api('providers');
+  const [data, research] = await Promise.all([
+    api('providers'),
+    api('research').catch(() => ({ configured: false, provider: null })),
+  ]);
   render(
     '<div class="thread"><div class="head"><div class="title-row"><h2>Providers</h2></div>' +
       '<p class="muted">Credentials are stored in the operating system keychain and never rendered here.</p></div>' +
+      '<div class="section"><h3>Web research</h3><p class="' +
+      (research.configured ? 'ok-text' : 'notice') +
+      '">' +
+      (research.configured
+        ? 'Configured: ' + esc(research.provider)
+        : 'Disabled. Set PITCREW_SEARXNG_URL or PITCREW_BRAVE_SEARCH_API_KEY before starting the daemon.') +
+      '</p></div>' +
       '<div class="section"><h3>Configured routing</h3><table><tr><th>Id</th><th>Provider</th><th>Model</th></tr>' +
       data.configured
         .map(
@@ -647,6 +697,274 @@ async function approvals() {
     );
 }
 
+async function quick() {
+  let assistants = [];
+  try {
+    assistants = (await api('assistants')).assistants.filter(
+      (assistant) => assistant.scope === 'global',
+    );
+  } catch {
+    assistants = [];
+  }
+  render(
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Quick assistant</h2></div>' +
+      '<p class="muted">A draft answer from your configured model. This is not independent verification. Only the text and optional search query leave this machine.</p></div>' +
+      '<form id="quick-form"><label>Text<textarea name="text" rows="8" required placeholder="Paste text or type a question…"></textarea></label>' +
+      '<div class="row"><button type="button" id="read-clipboard">Read clipboard</button><span id="clipboard-status" class="muted small"></span></div>' +
+      '<label>Preset<select name="preset"><option value="summarize">Summarize</option><option value="explain">Explain</option><option value="translate">Translate</option></select></label>' +
+      '<label>Translate target<input name="target" value="English" maxlength="40" /></label>' +
+      '<label>Assistant<select name="assistant"><option value="">None</option>' +
+      assistants
+        .map(
+          (assistant) =>
+            '<option value="' +
+            esc(assistant.id) +
+            '">' +
+            esc(assistant.name) +
+            '</option>',
+        )
+        .join('') +
+      '</select></label>' +
+      '<label class="check"><input type="checkbox" name="web" /> Search the web first (query is sent to the configured search provider)</label>' +
+      '<div class="row"><button type="submit" class="primary">Ask</button></div></form></div>',
+  );
+  const form = document.querySelector('#quick-form');
+  const textarea = form.querySelector('textarea[name="text"]');
+  const clipboardStatus = document.querySelector('#clipboard-status');
+  async function readClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) textarea.value = text;
+      clipboardStatus.textContent = text
+        ? 'Clipboard loaded.'
+        : 'Clipboard is empty.';
+    } catch {
+      clipboardStatus.textContent =
+        'Clipboard permission unavailable. Paste manually.';
+    }
+  }
+  document
+    .querySelector('#read-clipboard')
+    .addEventListener('click', readClipboard);
+  setTimeout(() => {
+    textarea.focus();
+    void readClipboard();
+  }, 0);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const assistantId = data.get('assistant');
+    api(
+      'quick',
+      {
+        text: data.get('text'),
+        preset: data.get('preset'),
+        target: data.get('target') || undefined,
+        web: data.get('web') === 'on',
+        ...(assistantId ? { assistantId } : {}),
+      },
+      'POST',
+      150000,
+    )
+      .then((result) => {
+        render(
+          '<div class="thread"><div class="head"><div class="title-row"><h2>Quick assistant</h2></div>' +
+            '<p class="muted">Draft only. Not independently verified. Provider: ' +
+            esc(result.provider) +
+            (result.web ? ' · web search used' : '') +
+            '</p></div><pre class="quick-answer">' +
+            esc(result.answer) +
+            '</pre>' +
+            (result.sources.length
+              ? '<div class="section"><h3>Sources</h3><ul class="sources">' +
+                result.sources
+                  .map(
+                    (source) =>
+                      '<li><a href="' +
+                      esc(source.url) +
+                      '" target="_blank" rel="noreferrer">' +
+                      esc(source.title) +
+                      '</a><span class="muted small">' +
+                      esc(source.description) +
+                      '</span></li>',
+                  )
+                  .join('') +
+                '</ul></div>'
+              : '') +
+            '<div class="row"><a class="button" href="#/quick">New quick request</a></div></div>',
+        );
+      })
+      .catch(failure);
+  });
+}
+
+async function memory() {
+  const [projects, notes] = await Promise.all([api('projects'), api('memory')]);
+  render(
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Memory</h2></div>' +
+      '<p class="muted">Short notes are included as untrusted context in missions. Global notes apply everywhere; project notes apply only to that repository. Secrets are rejected.</p></div>' +
+      '<form id="memory-form"><label>Note<textarea name="text" rows="4" required maxlength="4000"></textarea></label>' +
+      '<label>Scope<select name="scope"><option value="global">Global</option><option value="project">Project</option></select></label>' +
+      '<label>Project<select name="project_id">' +
+      projects.projects
+        .map(
+          (project) =>
+            '<option value="' +
+            esc(project.id) +
+            '">' +
+            esc(project.display_name) +
+            '</option>',
+        )
+        .join('') +
+      '</select></label><div class="row"><button type="submit" class="primary">Save note</button></div></form>' +
+      '<div class="section"><h3>Saved notes</h3>' +
+      (notes.notes.length
+        ? '<table><tr><th>Note</th><th>Scope</th><th></th></tr>' +
+          notes.notes
+            .map(
+              (note) =>
+                '<tr><td>' +
+                esc(note.text) +
+                '</td><td class="mono">' +
+                esc(note.scope) +
+                (note.projectRoot ? ' · ' + esc(note.projectRoot) : '') +
+                '</td><td><button data-delete-memory="' +
+                esc(note.id) +
+                '">Delete</button></td></tr>',
+            )
+            .join('') +
+          '</table>'
+        : '<p class="empty">No notes saved.</p>') +
+      '</div></div>',
+  );
+  const form = document.querySelector('#memory-form');
+  form
+    .querySelector('select[name="scope"]')
+    .addEventListener('change', (event) => {
+      form.querySelector('select[name="project_id"]').disabled =
+        event.target.value !== 'project';
+    });
+  form.querySelector('select[name="project_id"]').disabled = true;
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    api('memory', {
+      text: data.get('text'),
+      scope: data.get('scope'),
+      ...(data.get('scope') === 'project'
+        ? { project_id: data.get('project_id') }
+        : {}),
+    })
+      .then(memory)
+      .catch(failure);
+  });
+  view.querySelectorAll('button[data-delete-memory]').forEach((button) =>
+    button.addEventListener('click', () => {
+      api('memory/' + button.dataset.deleteMemory, undefined, 'DELETE')
+        .then(memory)
+        .catch(failure);
+    }),
+  );
+}
+
+async function assistants() {
+  const [projects, stored, profiles] = await Promise.all([
+    api('projects'),
+    api('assistants'),
+    api('model-profiles'),
+  ]);
+  const routes = profiles.active?.providers ?? [];
+  render(
+    '<div class="thread"><div class="head"><div class="title-row"><h2>Assistants</h2></div>' +
+      '<p class="muted">A saved prompt and optional model route. The prompt is user-authored context; it cannot change policy, tools, or verification. Selecting an assistant records only its prompt digest on the mission.</p></div>' +
+      '<form id="assistant-form"><label>Name<input name="name" required maxlength="100" /></label>' +
+      '<label>Prompt<textarea name="prompt" rows="6" required maxlength="8000" placeholder="How should this assistant work?"></textarea></label>' +
+      '<label>Scope<select name="scope"><option value="global">Global</option><option value="project">Project</option></select></label>' +
+      '<label>Project<select name="project_id">' +
+      projects.projects
+        .map(
+          (project) =>
+            '<option value="' +
+            esc(project.id) +
+            '">' +
+            esc(project.display_name) +
+            '</option>',
+        )
+        .join('') +
+      '</select></label><label>Model route<select name="route_id"><option value="">Automatic routing</option>' +
+      routes
+        .map(
+          (route) =>
+            '<option value="' +
+            esc(route.id) +
+            '">' +
+            esc(route.id) +
+            ' · ' +
+            esc(route.provider.model ?? route.provider.type) +
+            '</option>',
+        )
+        .join('') +
+      '</select></label><label>Model override<input name="model" maxlength="200" placeholder="Optional" /></label>' +
+      '<div class="row"><button type="submit" class="primary">Save assistant</button></div></form>' +
+      '<div class="section"><h3>Saved assistants</h3>' +
+      (stored.assistants.length
+        ? '<table><tr><th>Assistant</th><th>Scope</th><th>Model</th><th></th></tr>' +
+          stored.assistants
+            .map(
+              (assistant) =>
+                '<tr><td><strong>' +
+                esc(assistant.name) +
+                '</strong><br /><span class="muted small">' +
+                esc(assistant.prompt.slice(0, 160)) +
+                '</span></td><td class="mono">' +
+                esc(assistant.scope) +
+                (assistant.projectId ? ' · ' + esc(assistant.projectId) : '') +
+                '</td><td class="mono">' +
+                esc(assistant.model ?? assistant.routeId ?? 'auto') +
+                '</td><td><button data-delete-assistant="' +
+                esc(assistant.id) +
+                '">Delete</button></td></tr>',
+            )
+            .join('') +
+          '</table>'
+        : '<p class="empty">No assistants saved.</p>') +
+      '</div></div>',
+  );
+  const form = document.querySelector('#assistant-form');
+  form
+    .querySelector('select[name="scope"]')
+    .addEventListener('change', (event) => {
+      form.querySelector('select[name="project_id"]').disabled =
+        event.target.value !== 'project';
+    });
+  form.querySelector('select[name="project_id"]').disabled = true;
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const routeId = data.get('route_id');
+    const model = data.get('model');
+    api('assistants', {
+      name: data.get('name'),
+      prompt: data.get('prompt'),
+      scope: data.get('scope'),
+      ...(data.get('scope') === 'project'
+        ? { project_id: data.get('project_id') }
+        : {}),
+      ...(routeId ? { route_id: routeId } : {}),
+      ...(model ? { model } : {}),
+    })
+      .then(assistants)
+      .catch(failure);
+  });
+  view.querySelectorAll('button[data-delete-assistant]').forEach((button) =>
+    button.addEventListener('click', () => {
+      api('assistants/' + button.dataset.deleteAssistant, undefined, 'DELETE')
+        .then(assistants)
+        .catch(failure);
+    }),
+  );
+}
+
 async function route() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [name, id] = raw.split('/');
@@ -669,6 +987,9 @@ async function route() {
     else if (name === 'browser') await browserLab();
     else if (name === 'providers') await providers();
     else if (name === 'approvals') await approvals();
+    else if (name === 'quick') await quick();
+    else if (name === 'memory') await memory();
+    else if (name === 'assistants') await assistants();
     else await home();
   } catch (error) {
     failure(error);

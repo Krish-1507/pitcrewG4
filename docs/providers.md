@@ -66,3 +66,14 @@ in SQLite; secret values do not.
 CLI bridge implementations are trusted code behind the CliBridge contract.
 The initial Codex bridge disables tools and requests bounded structured proposals.
 Arbitrary command templates and private authentication extraction are unsupported.
+
+## Web research
+
+Web research is a separate, opt-in provider path. It is not a mission model route and cannot change the verification standard.
+
+- `PITCREW_SEARXNG_URL`: SearXNG base URL. HTTPS is accepted; plain HTTP is accepted only for `localhost`, `127.0.0.1` or `[::1]`. Embedded credentials, query strings and fragments are rejected.
+- `PITCREW_BRAVE_SEARCH_API_KEY`: Brave Search subscription token. The endpoint is fixed to `https://api.search.brave.com/res/v1/web/search`; the key is sent only to that host and is included in secret redaction.
+
+With neither variable set, research is disabled and no network request is made. Queries are normalized to one line and limited to 500 characters. Results are capped at five, restricted to HTTP(S) URLs, deduplicated, and treated as untrusted context. The daemon exposes `GET /v1/research` for status and `POST /v1/research` for a query.
+
+If routing is configured, Quick Assistant asks for the `quick-assistant` role. Add that role to an eligible route, or keep a single-provider configuration where routing is absent. An assistant can prefer a route and override the model, but not the provider type or verification policy.

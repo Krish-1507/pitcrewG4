@@ -10,6 +10,7 @@ import type {
   Candidate,
   Command,
   ProviderConfig,
+  Assistant,
 } from '@pitcrew/protocol';
 import { EvidenceStore } from '@pitcrew/evidence';
 import { observe } from '@pitcrew/repo-intelligence';
@@ -52,6 +53,7 @@ export interface MissionOptions {
   request: string;
   config: RuntimeConfig;
   signal: AbortSignal;
+  assistant?: Assistant;
   onEvent?: (mission: Mission) => void;
 }
 export function startMission(
@@ -59,6 +61,11 @@ export function startMission(
   options: MissionOptions,
 ): { mission: Mission; done: Promise<Mission>; control: MissionControl } {
   assertNoSecrets(options.request, configuredSecrets(options.config));
+  if (options.assistant)
+    assertNoSecrets(
+      options.assistant.prompt,
+      configuredSecrets(options.config),
+    );
   const mission = store.create(options.repo, options.request);
   const control = new MissionControl((event) => {
     const updated = store.append(mission.id, event);
@@ -94,6 +101,18 @@ async function execute(
     });
     await control.checkpoint(signal);
     baseline = await inspectBaseline(options.repo, signal);
+    if (options.assistant)
+      emit({
+        type: 'assistant',
+        assistantId: options.assistant.id,
+        name: options.assistant.name,
+        promptDigest: createHash('sha256')
+          .update(options.assistant.prompt)
+          .digest('hex'),
+        routeId: options.assistant.routeId,
+        model: options.assistant.model,
+      });
+    const memory = store.memoryNotesForRoot(baseline.root);
     const scientistId = 'dlg_' + randomUUID();
     emit({
       type: 'delegation',
@@ -287,21 +306,30 @@ async function execute(
             contextChars: contextText.length + options.request.length + 2048,
             tools: false,
             priorFailures: unavailable,
+            ...(options.assistant?.routeId
+              ? { preferredId: options.assistant.routeId }
+              : {}),
           });
+          const provider: ProviderConfig = options.assistant?.model
+            ? { ...route.provider, model: options.assistant.model }
+            : route.provider;
           calls++;
           emit({
             type: 'model',
             calls,
-            provider: route.id + ':' + route.provider.type,
+            provider: route.id + ':' + provider.type,
             costUsd: null,
           });
           try {
-            const value = await run(route.provider, {
+            const value = await run(provider, {
               request: options.request,
               context: contextText,
               directory: join(store.root, 'bridge', mission.id, id),
               signal,
               timeoutMs: remaining(),
+              ...(options.assistant?.prompt
+                ? { assistant: options.assistant.prompt }
+                : {}),
             });
             assertNoSecrets(JSON.stringify(value), configuredSecrets(config));
             const artifact = await store.artifact(JSON.stringify(value));
@@ -347,7 +375,7 @@ async function execute(
     if (crew.architect) {
       architecture = await runRole(
         'architect',
-        { crew, repository: context },
+        { crew, repository: context, memory },
         async (provider, input) =>
           validateArchitecture(
             (
@@ -388,6 +416,7 @@ async function execute(
         crew,
         architecture,
         diagnosis,
+        memory,
         test: { stdout: latest.stdout, stderr: latest.stderr },
       };
       if (shouldDebug(failedAttempts, diagnosed)) {
