@@ -1,0 +1,6 @@
+{
+  "name": "unslop",
+  "description": "Remove AI-slop prose while preserving meaning, facts, qualifications and voice.",
+  "version": "1.0.0",
+  "permissions": []
+}

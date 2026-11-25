@@ -3,7 +3,7 @@ import { PitCrewError, searchSourceSchema } from '@pitcrew/protocol';
 import type { SearchSource } from '@pitcrew/protocol';
 
 export interface SearchConfiguration {
-  provider: 'brave' | 'searxng';
+  provider: 'brave' | 'searxng' | 'duckduckgo';
 }
 export interface SearchResult {
   provider: SearchConfiguration['provider'];
@@ -13,10 +13,10 @@ export function searchSecrets(): string[] {
   const key = process.env.PITCREW_BRAVE_SEARCH_API_KEY;
   return key ? [key] : [];
 }
-export function searchConfiguration(): SearchConfiguration | undefined {
+export function searchConfiguration(): SearchConfiguration {
   if (process.env.PITCREW_SEARXNG_URL) return { provider: 'searxng' };
   if (process.env.PITCREW_BRAVE_SEARCH_API_KEY) return { provider: 'brave' };
-  return undefined;
+  return { provider: 'duckduckgo' };
 }
 function source(value: {
   title: string;
@@ -106,22 +106,136 @@ async function readJson(response: Response): Promise<unknown> {
     );
   }
 }
+function entityDecode(value: string): string {
+  return value
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+function stripTags(value: string): string {
+  return entityDecode(value.replace(/<[^>]*>/g, ''))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function resolveDdgHref(href: string): string | undefined {
+  let raw = entityDecode(href);
+  if (raw.startsWith('//')) raw = 'https:' + raw;
+  try {
+    const url = new URL(raw, 'https://duckduckgo.com');
+    const target = url.searchParams.get('uddg');
+    return target ? new URL(entityDecode(target)).toString() : url.toString();
+  } catch {
+    return undefined;
+  }
+}
+/** Parse the DuckDuckGo HTML result page into validated sources. */
+export function duckduckgoResultsFromHtml(html: string): SearchSource[] {
+  const titles = [
+    ...html.matchAll(
+      /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g,
+    ),
+  ];
+  const snippets = [
+    ...html.matchAll(/<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g),
+  ];
+  const seen = new Set<string>();
+  const results: SearchSource[] = [];
+  for (let index = 0; index < titles.length; index += 1) {
+    const title = stripTags(titles[index]![2] ?? '');
+    const url = resolveDdgHref(titles[index]![1] ?? '');
+    if (!title || !url || seen.has(url)) continue;
+    const item = source({
+      title,
+      url,
+      description: stripTags(snippets[index]?.[1] ?? ''),
+    });
+    if (!item) continue;
+    seen.add(url);
+    results.push(item);
+    if (results.length === 5) break;
+  }
+  return results;
+}
+
+/**
+ * Keyless DuckDuckGo HTML backend. The endpoint is a public page, not a
+ * contracted API: results are best-effort, heavy automated use can be
+ * rate-limited or blocked, and the HTML shape can change without notice.
+ * Everything returned is untrusted context.
+ */
+async function duckduckgoSearch(
+  normalized: string,
+  signal: AbortSignal,
+): Promise<SearchSource[]> {
+  let response: Response;
+  try {
+    response = await fetch('https://html.duckduckgo.com/html/', {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'user-agent': 'PitCrew/0.1 (local-first coding agent)',
+        accept: 'text/html',
+      },
+      body: new URLSearchParams({ q: normalized }).toString(),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+    });
+  } catch {
+    if (signal.aborted)
+      throw new PitCrewError('CANCELLED', 'Search request cancelled.');
+    throw new PitCrewError(
+      'PROVIDER_UNAVAILABLE',
+      'Search provider could not be reached.',
+    );
+  }
+  if (!response.ok)
+    throw new PitCrewError(
+      response.status === 429 ? 'RATE_LIMITED' : 'PROVIDER_UNAVAILABLE',
+      'Search provider failed (HTTP ' + response.status + ').',
+    );
+  if (!response.body)
+    throw new PitCrewError(
+      'PROVIDER_UNAVAILABLE',
+      'Search provider returned no response body.',
+    );
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const part = await reader.read();
+    if (part.done) break;
+    size += part.value.length;
+    if (size > 2 * 1024 * 1024) {
+      await reader.cancel();
+      throw new PitCrewError(
+        'PROVIDER_UNAVAILABLE',
+        'Search provider output exceeded limit.',
+      );
+    }
+    chunks.push(part.value);
+  }
+  const html = Buffer.concat(chunks).toString('utf8');
+  return duckduckgoResultsFromHtml(html);
+}
+
 export async function webSearch(
   query: string,
   signal: AbortSignal,
 ): Promise<SearchResult> {
   const configuration = searchConfiguration();
-  if (!configuration)
-    throw new PitCrewError(
-      'POLICY_DENIED',
-      'Web search is disabled. Set PITCREW_SEARXNG_URL or PITCREW_BRAVE_SEARCH_API_KEY.',
-    );
   const normalized = query.replace(/\s+/g, ' ').trim();
   if (!normalized || normalized.length > 500 || normalized.includes('\0'))
     throw new PitCrewError(
       'CONFIGURATION',
       'Search query must be one line of at most 500 characters.',
     );
+  if (configuration.provider === 'duckduckgo')
+    return {
+      provider: configuration.provider,
+      results: await duckduckgoSearch(normalized, signal),
+    };
   let endpoint: URL;
   const headers: Record<string, string> = {
     accept: 'application/json',

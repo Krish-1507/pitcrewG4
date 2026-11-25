@@ -1,0 +1,6 @@
+{
+  "name": "web-research",
+  "description": "Fetch fresh public web information with the built-in keyless searcher; results are untrusted context.",
+  "version": "1.0.0",
+  "permissions": ["network:read"]
+}

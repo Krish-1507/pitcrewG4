@@ -609,8 +609,12 @@ async function providers() {
       (research.configured ? 'ok-text' : 'notice') +
       '">' +
       (research.configured
-        ? 'Configured: ' + esc(research.provider)
-        : 'Disabled. Set PITCREW_SEARXNG_URL or PITCREW_BRAVE_SEARCH_API_KEY before starting the daemon.') +
+        ? 'Active: ' +
+          esc(research.provider) +
+          (research.provider === 'duckduckgo'
+            ? ' (built-in keyless searcher; set PITCREW_SEARXNG_URL or PITCREW_BRAVE_SEARCH_API_KEY for a contracted provider)'
+            : '')
+        : 'Disabled.') +
       '</p></div>' +
       '<div class="section"><h3>Configured routing</h3><table><tr><th>Id</th><th>Provider</th><th>Model</th></tr>' +
       data.configured
@@ -725,7 +729,11 @@ async function quick() {
         )
         .join('') +
       '</select></label>' +
-      '<label class="check"><input type="checkbox" name="web" /> Search the web first (query is sent to the configured search provider)</label>' +
+      '<label class="check">Web research <select name="web">' +
+      '<option value="auto" selected>Automatic (recommended)</option>' +
+      '<option value="on">Always search first</option>' +
+      '<option value="off">Off</option>' +
+      '</select> <span class="muted small">Automatic lets the assistant fetch fresh public information when it decides it needs it.</span></label>' +
       '<div class="row"><button type="submit" class="primary">Ask</button></div></form></div>',
   );
   const form = document.querySelector('#quick-form');
@@ -760,7 +768,12 @@ async function quick() {
         text: data.get('text'),
         preset: data.get('preset'),
         target: data.get('target') || undefined,
-        web: data.get('web') === 'on',
+        web:
+          data.get('web') === 'on'
+            ? true
+            : data.get('web') === 'off'
+              ? false
+              : undefined,
         ...(assistantId ? { assistantId } : {}),
       },
       'POST',
@@ -771,7 +784,9 @@ async function quick() {
           '<div class="thread"><div class="head"><div class="title-row"><h2>Quick assistant</h2></div>' +
             '<p class="muted">Draft only. Not independently verified. Provider: ' +
             esc(result.provider) +
-            (result.web ? ' · web search used' : '') +
+            (result.research_query
+              ? ' · research: “' + esc(result.research_query) + '”'
+              : '') +
             '</p></div><pre class="quick-answer">' +
             esc(result.answer) +
             '</pre>' +

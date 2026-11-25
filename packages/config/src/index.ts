@@ -2,6 +2,12 @@ import { readFile, realpath } from 'node:fs/promises';
 import { parseDocument } from 'yaml';
 import { configSchema, PitCrewError } from '@pitcrew/protocol';
 import type { RuntimeConfig } from '@pitcrew/protocol';
+export {
+  PROVIDER_PRESETS,
+  providerPreset,
+  providerConfigFromPreset,
+} from './presets.js';
+export type { ProviderPreset } from './presets.js';
 export async function loadConfig(path: string): Promise<RuntimeConfig> {
   const text = await readFile(await realpath(path), 'utf8');
   if (Buffer.byteLength(text) > 65536)

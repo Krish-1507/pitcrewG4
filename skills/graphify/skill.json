@@ -1,0 +1,6 @@
+{
+  "name": "graphify",
+  "description": "Map a repository into a queryable knowledge graph via the local graphify CLI.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "sandbox:execute"]
+}

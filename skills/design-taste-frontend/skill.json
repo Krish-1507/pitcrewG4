@@ -1,0 +1,6 @@
+{
+  "name": "design-taste-frontend",
+  "description": "Anti-slop frontend design: one design system, real content, browser-checked results.",
+  "version": "1.0.0",
+  "permissions": ["filesystem:read", "filesystem:write", "browser:qa"]
+}

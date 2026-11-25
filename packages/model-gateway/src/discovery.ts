@@ -47,9 +47,14 @@ export async function discoverProvider(
     )
       throw new PitCrewError('CONFIGURATION', 'Unsafe provider URL.');
     const secret = providerSecrets(config)[0];
+    const headers: Record<string, string> = secret
+      ? config.type === 'anthropic'
+        ? { 'x-api-key': secret, 'anthropic-version': '2023-06-01' }
+        : { authorization: 'Bearer ' + secret }
+      : {};
     const response = await fetch(url, {
       redirect: 'error',
-      headers: secret ? { authorization: 'Bearer ' + secret } : {},
+      headers,
       signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
     });
     if (!response.ok || !response.body) throw new Error('unavailable');

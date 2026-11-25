@@ -1,6 +1,6 @@
 # Roadmap
 
-Milestones 0 through 15 are implemented, plus a post-15 local assistant extension. Release-gate verification is recorded in [validation/release-gate.md](validation/release-gate.md). The only gate still NOT_PROVEN is a clean macOS installation.
+Milestones 0 through 15, the post-15 local assistant extension, and the provider/session/desktop extension are implemented. Release-gate verification is recorded in [validation/release-gate.md](validation/release-gate.md). The only gate still NOT_PROVEN is a clean macOS installation.
 
 Each milestone ships only when the deterministic suite passes and the recorded evidence is linked from [validation/features-7-15.md](validation/features-7-15.md).
 
@@ -21,9 +21,11 @@ Each milestone ships only when the deterministic suite passes and the recorded e
 13. **Skills** — nine installed, validated skill manifests and instructions.
 14. **Benchmark and competition profile** — a ten-category harness with published raw fixture results and `profiles/g4/`.
 
-## Post-15 local assistant extension
+## Post-15 extensions
 
-The current working tree adds Quick Assistant, opt-in web research, global/project memory notes, and saved assistants. Quick Assistant is explicitly a draft path and does not change the verification standard. The extension has deterministic coverage in `assistant-features.test.ts`; it does not yet have an OpenPitStop verdict, so the recorded strict verification remains bound to `1c21762`.
+The local assistant extension shipped Quick Assistant, web research, global/project memory notes, and saved assistants. Quick Assistant is explicitly a draft path and does not change the verification standard. It has deterministic coverage in `assistant-features.test.ts`.
+
+The provider/session/desktop extension shipped named provider presets with a native Claude adapter, hardware-aware local-model onboarding, a built-in keyless DuckDuckGo searcher with automatic research, an interactive CLI session, an Electron desktop shell (Windows first), and five vendored community skills (`web-research`, `design-taste-frontend`, `unslop`, `graphify`, `ponytail`). These are draft/context features; they do not change the verification standard. They have deterministic coverage in `provider-presets.test.ts`, updated assistant tests and `skills.test.ts`; they do not yet have an OpenPitStop verdict, so the recorded strict verification remains bound to `1c21762`.
 
 ## Delivered milestone detail
 

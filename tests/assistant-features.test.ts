@@ -167,12 +167,14 @@ it('rejects search sources with unsafe schemes or embedded credentials', () => {
   ).toBe(true);
 });
 
-it('refuses disabled, credential-bearing, and non-loopback HTTP SearXNG configuration', async () => {
+it('falls back to the built-in keyless searcher and still rejects unsafe SearXNG configuration', async () => {
   vi.stubEnv('PITCREW_SEARXNG_URL', '');
   vi.stubEnv('PITCREW_BRAVE_SEARCH_API_KEY', '');
-  await expect(
-    webSearch('query', AbortSignal.timeout(5000)),
-  ).rejects.toMatchObject({ code: 'POLICY_DENIED' });
+  const fallback = await webSearch('query', AbortSignal.timeout(5000));
+  expect(fallback.provider).toBe('duckduckgo');
+  expect(fallback.results.length).toBeLessThanOrEqual(5);
+  for (const result of fallback.results)
+    expect(() => searchSourceSchema.parse(result)).not.toThrow();
   vi.stubEnv('PITCREW_SEARXNG_URL', 'https://user:pass@example.test');
   await expect(
     webSearch('query', AbortSignal.timeout(5000)),
@@ -181,6 +183,30 @@ it('refuses disabled, credential-bearing, and non-loopback HTTP SearXNG configur
   await expect(
     webSearch('query', AbortSignal.timeout(5000)),
   ).rejects.toMatchObject({ code: 'CONFIGURATION' });
+});
+
+it('parses the keyless searcher HTML into validated, deduplicated sources', async () => {
+  const { duckduckgoResultsFromHtml } = await import(
+    '../packages/model-gateway/src/search.js'
+  );
+  const html =
+    '<div class="result"><a class="result__a" href="//duckduckgo.com/l/?uddg=' +
+    encodeURIComponent('https://example.test/a') +
+    '&amp;rut=x">Result &amp; One</a>' +
+    '<a class="result__snippet">A <b>snippet</b> &#x27;quoted&#x27;</a></div>' +
+    '<div class="result"><a class="result__a" href="https://example.test/a">Duplicate</a></div>' +
+    '<div class="result"><a class="result__a" href="javascript:evil()">Skip protocol</a></div>' +
+    '<div class="result"><a class="result__a" href="//duckduckgo.com/l/?uddg=' +
+    encodeURIComponent('ftp://example.test/b') +
+    '">Skip ftp</a></div>';
+  const results = duckduckgoResultsFromHtml(html);
+  expect(results).toEqual([
+    {
+      title: 'Result & One',
+      url: 'https://example.test/a',
+      description: "A snippet 'quoted'",
+    },
+  ]);
 });
 
 it('persists notes and assistants, rejects project assistants in Quick Assistant, and drafts from global presets', async () => {
@@ -220,8 +246,8 @@ it('persists notes and assistants, rejects project assistants in Quick Assistant
   }
   try {
     expect((await api('/v1/research')).body).toEqual({
-      configured: false,
-      provider: null,
+      configured: true,
+      provider: 'duckduckgo',
     });
     vi.stubEnv('PITCREW_SEARXNG_URL', search.url);
     expect(
@@ -257,7 +283,9 @@ it('persists notes and assistants, rejects project assistants in Quick Assistant
     expect(quick.body).toMatchObject({
       answer: 'Draft answer.',
       provider: 'openai-compatible',
-      web: false,
+      // No web field on the request: automatic research mode. The fixture
+      // model never requests research, so the answer carries no sources.
+      web: 'auto',
       sources: [],
     });
     const sent = JSON.stringify(model.bodies.at(-1));
@@ -271,7 +299,7 @@ it('persists notes and assistants, rejects project assistants in Quick Assistant
       web: true,
     });
     expect(webQuick.status).toBe(200);
-    expect(webQuick.body).toMatchObject({ web: true });
+    expect(webQuick.body).toMatchObject({ web: 'on' });
     expect((webQuick.body as { sources: unknown[] }).sources).toHaveLength(2);
     expect(search.queries.at(-1)).toBe('Alpha beta');
     expect(JSON.stringify(model.bodies.at(-1))).toContain('First result.');

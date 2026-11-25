@@ -10,9 +10,9 @@ PitCrew is an early development build. The following limitations are current fac
 
 ## Test coverage
 
-- The deterministic suite is 98 tests in 17 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
+- The deterministic suite is 104 tests in 18 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
 - `orchestrator` full-mission behaviour is exercised by the live acceptance script, not CI.
-- `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test.
+- `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test, and the interactive CLI session and Electron shell have manual acceptance only.
 - A live mission requires an installed, authenticated model provider.
 
 ## Local assistant features
@@ -20,12 +20,13 @@ PitCrew is an early development build. The following limitations are current fac
 - Quick Assistant output is a draft from the configured model. It is never `VERIFIED` and is not independent evidence.
 - Quick Assistant does not persist answers. Clipboard auto-read depends on browser permission; manual paste is always available.
 - The Windows installer registers `Ctrl+Alt+P` through a Start Menu shortcut. Linux users must bind `pitcrew-quick` manually. macOS hotkey behavior is unproven.
-- Web research is disabled by default. It requires `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY`; with neither set, no search request is made.
-- Web research is an explicit endpoint and Quick Assistant option, not an autonomous model tool loop. Search results are untrusted context.
+- Web research runs through a built-in keyless DuckDuckGo searcher by default. It is free and needs no configuration, but it is a public page, not a contracted API: heavy automated use can be rate-limited or blocked, and the HTML shape can change without notice. Set `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY` for a provider with an SLA.
+- Automatic research is bounded: one decision call, then at most one search round per Quick Assistant request. It is not an open-ended browsing loop. Search results are untrusted context.
 - Memory notes and assistant prompts are local SQLite records. There are no embeddings, semantic search, sync, or automatic summarization.
 - Quick Assistant accepts global assistants only. Project assistants are restricted to their project.
 - Assistant route and model overrides can fail if the selected route is no longer eligible. A configured routing profile needs a route with the `quick-assistant` role for Quick Assistant.
-- The current assistant-feature changes have deterministic coverage but no new OpenPitStop verdict. The recorded OpenPitStop evidence is for `1c21762`.
+- The assistant-feature, provider-preset and desktop changes have deterministic coverage but no new OpenPitStop verdict. The recorded OpenPitStop evidence is for `1c21762`.
+- The Electron binary extraction failed on at least one development machine (incomplete `dist/` despite a clean exit); the desktop build is therefore `NOT_PROVEN` locally until reproduced on a clean environment. electron-builder packaging downloads its own artifacts and is expected to be unaffected, but no installer has been produced or run yet.
 
 ## Models and benchmarks
 
@@ -41,7 +42,7 @@ PitCrew is an early development build. The following limitations are current fac
 ## Platforms
 
 - CI covers Windows and Linux. A clean macOS installation has not been verified in this repository.
-- Native desktop packaging is not shipped. Mission Control is a local web interface served by the daemon and is verified by static assertions plus a manual smoke run, not an automated interaction test.
+- The desktop app is Windows-first (NSIS installer via electron-builder) and unsigned: expect SmartScreen/Gatekeeper warnings until code signing is added. Linux and macOS Electron packaging, tray icon assets, and the desktop app on any platform are `NOT_PROVEN`.
 
 ## Scope
 

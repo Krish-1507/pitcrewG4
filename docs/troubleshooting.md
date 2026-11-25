@@ -47,9 +47,9 @@ Clipboard auto-read requires browser permission. If the page reports permission 
 
 Quick Assistant accepts global assistants only. Create the assistant with global scope, or use the project assistant from a mission in that project.
 
-## Web research is disabled
+## Web research is unavailable or rate-limited
 
-Set `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY` before starting the daemon. `pitcrew doctor` and `GET /v1/research` report the active state. SearXNG must use HTTPS or HTTP on loopback, with no embedded credentials. Brave uses the fixed `api.search.brave.com` endpoint. Only the normalized query leaves the machine.
+The built-in keyless DuckDuckGo searcher needs no configuration and runs only when research is used. It is a public page, not a contracted API: heavy automated use can be rate-limited or blocked (HTTP 429), and the HTML shape can change without notice. For reliability-critical work, set `PITCREW_SEARXNG_URL` or `PITCREW_BRAVE_SEARCH_API_KEY`. `pitcrew doctor` and `GET /v1/research` report the active provider. SearXNG must use HTTPS or HTTP on loopback, with no embedded credentials. Brave uses the fixed `api.search.brave.com` endpoint. Only the normalized query leaves the machine.
 
 ## A memory note or assistant prompt is rejected
 
@@ -70,3 +70,11 @@ The default execution policy does not fall back to host execution. Either instal
 ## Tests pass locally but fail in CI
 
 CI checks out with LF line endings and runs `pnpm format:check`. Run `pnpm format` before pushing. Windows-specific failures should be reproduced with the same Node and pnpm versions CI uses.
+
+## Desktop app cannot find the daemon runtime
+
+The Electron shell reuses the CLI runtime. Install Node.js 22.13+, run the PitCrew installer (or `npm install -g @pitcrew/cli`), and run `pitcrew setup` once so `~/.pitcrew/config.json` exists. Set `PITCREW_DAEMON` or `PITCREW_INSTALL_ROOT` if the CLI was installed somewhere non-default.
+
+## Electron binary fails to install during development
+
+If `pnpm install` reports Electron installed but `node_modules/electron/dist` is incomplete (only `locales`), remove that `dist` folder and run `node node_modules/electron/install.js` again. Some antivirus or controlled-folder setups block parts of the extraction. Packaging with electron-builder downloads its own Electron artifacts and is unaffected.

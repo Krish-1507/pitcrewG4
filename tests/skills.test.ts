@@ -13,9 +13,14 @@ it('loads the installed skill set with validated manifests and instructions', as
     'browser-qa',
     'database-safety',
     'debugging',
+    'design-taste-frontend',
     'documentation',
+    'graphify',
     'performance',
+    'ponytail',
     'security-review',
+    'unslop',
+    'web-research',
   ]);
   for (const skill of skills) {
     expect(skill.instructions.length).toBeGreaterThan(40);

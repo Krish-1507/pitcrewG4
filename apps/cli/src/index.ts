@@ -8,11 +8,19 @@ import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
-import { validateConfig } from '@pitcrew/config';
+import {
+  validateConfig,
+  PROVIDER_PRESETS,
+  providerPreset,
+  providerConfigFromPreset,
+  type ProviderPreset,
+} from '@pitcrew/config';
 import { missionSchema, type ProviderConfig } from '@pitcrew/protocol';
 import { loadSkills } from '@pitcrew/skills';
+import { detectHardware, suggestLocalModel } from './hardware.js';
+import { probeProviderCatalogue, hardwareSummary } from './provider-setup.js';
+import { runInteractiveSession, streamMission } from './session.js';
 
 const options = parseArgs({
   options: {
@@ -156,6 +164,7 @@ function styledLine(event: MissionEvent): string {
       return head;
   }
 }
+const version = '0.1.0-dev';
 const homeDirectory = resolve(
   process.env.PITCREW_HOME ?? join(homedir(), '.pitcrew'),
 );
@@ -213,6 +222,48 @@ function openBrowser(url: string): void {
   child.unref();
 }
 
+const providerPresetById = (id: string): ProviderPreset | undefined =>
+  PROVIDER_PRESETS.find((preset) => preset.id === id);
+
+function pickPreset(value: string): ProviderPreset | undefined {
+  const id = value.toLowerCase();
+  const alias: Record<string, string> = {
+    claude: 'anthropic',
+    chatgpt: 'openai',
+    gpt: 'openai',
+  };
+  return providerPreset(alias[id] ?? id);
+}
+
+async function askPreset(
+  terminal: Awaited<ReturnType<typeof createInterface>>,
+): Promise<ProviderPreset> {
+  console.log('Available providers:');
+  PROVIDER_PRESETS.forEach((preset, index) => {
+    console.log(
+      '  ' +
+        String(index + 1).padStart(2) +
+        '. ' +
+        preset.label +
+        (preset.note ? dim('  — ' + preset.note) : ''),
+    );
+  });
+  for (;;) {
+    const answer = (await terminal.question('Provider number or name [1]: '))
+      .trim()
+      .toLowerCase();
+    if (!answer || answer === '1') return providerPresetById('codex')!;
+    const byNumber = Number.parseInt(answer, 10);
+    const found = Number.isFinite(byNumber)
+      ? PROVIDER_PRESETS[byNumber - 1]
+      : pickPreset(answer);
+    if (found) return found;
+    console.log(
+      'Pick a number from the list, or a preset name such as "ollama".',
+    );
+  }
+}
+
 async function setupConfig(
   configPath: string,
   assumeYes: boolean,
@@ -250,49 +301,67 @@ async function setupConfig(
       );
       if (!replace) return;
     }
-    const choice = (
-      options.values.provider ??
-      (await ask(
-        'Provider (codex, openai-compatible, ollama, freellmapi)',
-        'codex',
-      ))
-    ).toLowerCase();
+    const preset = options.values.provider
+      ? pickPreset(options.values.provider)
+      : interactive
+        ? await askPreset(terminal!)
+        : providerPresetById('codex')!;
+    if (!preset) throw new Error('Unknown provider preset.');
     let provider: ProviderConfig;
-    if (choice === 'codex') {
-      provider = {
-        type: 'codex',
-        executable: process.env.PITCREW_CODEX_EXECUTABLE ?? 'codex',
+    if (preset.id === 'codex') {
+      provider = providerConfigFromPreset(preset, {
         ...(options.values.model ? { model: options.values.model } : {}),
-      };
-    } else if (
-      choice === 'openai-compatible' ||
-      choice === 'ollama' ||
-      choice === 'freellmapi'
-    ) {
-      const baseUrl =
-        options.values['base-url'] ??
-        (await ask(
-          'Provider base URL',
-          choice === 'ollama'
-            ? 'http://127.0.0.1:11434/v1'
-            : 'http://127.0.0.1:8000/v1',
-        ));
+      });
+    } else {
+      let baseUrl = preset.baseUrl;
+      if (preset.id === 'custom' || options.values['base-url'])
+        baseUrl =
+          options.values['base-url'] ??
+          (await ask(
+            'Provider base URL',
+            preset.baseUrl ?? 'http://127.0.0.1:8000/v1',
+          ));
       const model =
-        options.values.model ??
-        (await ask('Model', choice === 'ollama' ? 'llama3.1' : 'gpt-4o-mini'));
-      const apiKeyEnv =
-        options.values['api-key-env'] ??
-        (choice === 'ollama'
-          ? undefined
-          : await ask('API key env var (blank for none)', ''));
-      provider = {
-        type: choice,
-        baseUrl,
+        options.values.model ?? (await ask('Model', preset.defaultModel));
+      let apiKeyEnv = options.values['api-key-env'];
+      if (apiKeyEnv === undefined && preset.requiresKey && terminal)
+        apiKeyEnv =
+          (await ask(
+            'API key env var (name only; the key itself is never asked for)',
+            preset.keyEnv ?? '',
+          )) || undefined;
+      provider = providerConfigFromPreset(preset, {
         model,
         ...(apiKeyEnv ? { apiKeyEnv } : {}),
-      };
-    } else {
-      throw new Error('Unsupported provider: ' + choice);
+        ...(baseUrl && baseUrl !== preset.baseUrl ? { baseUrl } : {}),
+      });
+    }
+    if (preset.local || preset.id === 'custom') {
+      const report = await detectHardware();
+      const suggestion = suggestLocalModel(report);
+      console.log(
+        'Hardware: ' +
+          hardwareSummary(report) +
+          '\nSuggested local model tier: ' +
+          suggestion.tier +
+          ' — ' +
+          suggestion.reasoning +
+          '\nExamples: ' +
+          suggestion.models.join(', '),
+      );
+      const models = await probeProviderCatalogue(provider);
+      if (models.length)
+        console.log(
+          'Detected models at ' +
+            ('baseUrl' in provider ? provider.baseUrl : 'the endpoint') +
+            ': ' +
+            models.slice(0, 12).join(', ') +
+            (models.length > 12 ? ' …' : ''),
+        );
+      else
+        console.log(
+          'Endpoint not reachable right now; pitcrew doctor will verify it later.',
+        );
     }
     const reduced =
       options.values['reduced-isolation'] ??
@@ -345,7 +414,15 @@ async function configuredPath(): Promise<string> {
 }
 
 const commandName = options.positionals[0];
-if (options.values.help || !options.positionals.length) {
+const interactiveSession =
+  !options.positionals.length &&
+  process.stdin.isTTY &&
+  !options.values.json &&
+  !options.values.help;
+if (
+  options.values.help ||
+  (!options.positionals.length && !interactiveSession)
+) {
   console.log(
     'PITCREW\n\nUsage: pitcrew setup [--provider codex] [--model <name>] [--yes] [--force]\n       pitcrew [--repo .] "<mission>"\n       pitcrew app [--repo .] [--quick]\n       pitcrew quick [--repo .]\n       pitcrew doctor | open | ui | replay <mission> | diff <mission> | certificate <mission>\n       pitcrew research "<query>"\n       pitcrew memory list|add|delete [--repo <path>] [<note>|<id>]\n       pitcrew assistant list|add|delete [--name <name>] [--prompt <text>] [--scope global|project] [--project <id>] [--route <id>] [--model <name>]\n       pitcrew story <project> | skills <dir> | blindspot --repo <path> --mutations <file.json>\n\nConfiguration defaults to ~/.pitcrew/config.json; state defaults to ~/.pitcrew/state.\nPass --config/--state to override. Evidence-backed outcomes: VERIFIED / BLOCKED / NOT PROVEN.\nQuick Assistant output is a draft and is never verification.',
   );
@@ -651,93 +728,45 @@ if (options.values.help || !options.positionals.length) {
         ),
       );
     } else {
-      const created = z.object({ mission_id: z.string() }).parse(
-        await api('missions', {
-          repo: resolve(options.values.repo ?? '.'),
+      if (interactiveSession) {
+        await runInteractiveSession({
+          api,
+          terminal: terminal!,
+          missionControlUrl: connection.url + '/#token=' + connection.token,
+          openApp: () =>
+            openBrowser(connection.url + '/#token=' + connection.token),
+          runMission: (request) =>
+            streamMission({
+              api,
+              styledLine,
+              paint: { bold, dim, green, red, yellow },
+              terminal: terminal ?? null,
+              jsonMode: false,
+              request,
+              repo: resolve(options.values.repo ?? '.'),
+              ...(options.values.assistant
+                ? { assistantId: options.values.assistant }
+                : {}),
+            }).then((run) => {
+              missionId = run.missionId;
+            }),
+          version,
+        });
+      } else {
+        await streamMission({
+          api,
+          styledLine,
+          paint: { bold, dim, green, red, yellow },
+          terminal: terminal ?? null,
+          jsonMode: Boolean(options.values.json),
           request: options.positionals.join(' '),
+          repo: resolve(options.values.repo ?? '.'),
           ...(options.values.assistant
-            ? { assistant_id: options.values.assistant }
+            ? { assistantId: options.values.assistant }
             : {}),
-        }),
-      );
-      missionId = created.mission_id;
-      if (!options.values.json)
-        console.log(
-          '\n' +
-            bold('PITCREW') +
-            dim('  mission control') +
-            '\n ' +
-            options.positionals.join(' ') +
-            '\n' +
-            dim(' mission ') +
-            missionId +
-            '\n',
-        );
-      let seen = 0;
-      for (;;) {
-        const mission = missionSchema.parse(await api('missions/' + missionId));
-        for (const item of mission.events.filter((e) => e.sequence > seen)) {
-          seen = item.sequence;
-          if (item.event.type === 'approval.requested') {
-            const approval = item.event;
-            console.log(
-              yellow('\n ⚠ Approval required') +
-                dim(' — ') +
-                approval.reason +
-                '\n ' +
-                dim('action hash ') +
-                approval.hash,
-            );
-            console.log(
-              z
-                .object({ content: z.string() })
-                .parse(await api('artifacts/' + approval.artifact)).content,
-            );
-            const answer = terminal
-              ? await terminal.question(
-                  'Approve this exact candidate-only change? Type approve: ',
-                )
-              : 'reject';
-            await api('approvals/' + approval.id, {
-              decision: answer.trim() === 'approve' ? 'approve' : 'reject',
-              action_hash: approval.hash,
-            });
-          }
-          if (options.values.json) console.log(JSON.stringify(item));
-          else console.log(' ' + styledLine(item.event));
-        }
-        if (
-          ['VERIFIED', 'BLOCKED', 'NOT_PROVEN', 'CANCELLED'].includes(
-            mission.state,
-          )
-        ) {
-          if (!options.values.json) {
-            const verdictColor =
-              mission.state === 'VERIFIED'
-                ? green
-                : mission.state === 'BLOCKED'
-                  ? red
-                  : yellow;
-            const lines = [
-              '',
-              ' ' + verdictColor(bold(mission.state.replace('_', ' '))),
-              ' ' + mission.message,
-            ];
-            if (mission.candidate) {
-              lines.push(dim(' candidate ') + mission.candidate.root);
-              lines.push(dim(' inspect   ') + 'pitcrew diff ' + mission.id);
-            }
-            console.log(lines.join('\n') + '\n');
-          }
-          process.exitCode =
-            mission.state === 'VERIFIED'
-              ? 0
-              : mission.state === 'BLOCKED'
-                ? 1
-                : 2;
-          break;
-        }
-        await delay(300);
+        }).then((run) => {
+          missionId = run.missionId;
+        });
       }
     }
   } finally {

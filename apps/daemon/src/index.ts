@@ -18,6 +18,7 @@ import { runBlindspot } from '@pitcrew/blindspot';
 import { runBrowserScenario } from '@pitcrew/browser-lab';
 import { browserScenarioSchema } from '@pitcrew/browser-lab';
 import { runProcess, runSandbox } from '@pitcrew/sandbox';
+import { loadSkills } from '@pitcrew/skills';
 import { indexRepository, buildRepoStory } from '@pitcrew/repo-intelligence';
 import {
   answer,
@@ -29,6 +30,7 @@ import {
   selectRoute,
   webSearch,
   searchConfiguration,
+  decideResearch,
 } from '@pitcrew/model-gateway';
 import { validateConfig } from '@pitcrew/config';
 import { assertNoSecrets } from '@pitcrew/observability';
@@ -328,6 +330,20 @@ export async function startDaemon(
       return;
     }
 
+    if (req.method === 'GET' && path === '/v1/skills') {
+      const skills = await loadSkills(resolve(process.cwd(), 'skills')).catch(
+        () => [],
+      );
+      json(res, 200, {
+        skills: skills.map((skill) => ({
+          name: skill.manifest.name,
+          description: skill.manifest.description,
+          version: skill.manifest.version,
+          permissions: skill.manifest.permissions,
+        })),
+      });
+      return;
+    }
     if (req.method === 'GET' && path === '/v1/research') {
       const configured = searchConfiguration();
       json(res, 200, {
@@ -355,15 +371,10 @@ export async function startDaemon(
       if (input.assistantId && !assistant) throw new Error('unknown assistant');
       if (assistant && assistant.scope !== 'global')
         throw new Error('Quick Assistant requires a global assistant.');
-      let sources: Awaited<ReturnType<typeof webSearch>>['results'] = [];
-      if (input.web) {
-        const query = input.text.replace(/\s+/g, ' ').trim().slice(0, 500);
-        sources = (await webSearch(query, AbortSignal.timeout(20000))).results;
-      }
       const route = selectRoute(config, {
         role: 'quick-assistant',
         risk: 'low',
-        contextChars: input.text.length + JSON.stringify(sources).length + 2048,
+        contextChars: input.text.length + 2048,
         tools: false,
         priorFailures: new Set<string>(),
         ...(assistant?.routeId ? { preferredId: assistant.routeId } : {}),
@@ -371,6 +382,39 @@ export async function startDaemon(
       const provider = assistant?.model
         ? { ...route.provider, model: assistant.model }
         : route.provider;
+      let sources: Awaited<ReturnType<typeof webSearch>>['results'] = [];
+      let researchQuery: string | null = null;
+      const researchMode: 'auto' | 'on' | 'off' =
+        input.web === true ? 'on' : input.web === false ? 'off' : 'auto';
+      if (researchMode === 'off') {
+        // Explicitly off: no network research and no decision call.
+      } else if (researchMode === 'on') {
+        researchQuery = input.text.replace(/\s+/g, ' ').trim().slice(0, 500);
+        sources = (await webSearch(researchQuery, AbortSignal.timeout(20000)))
+          .results;
+      } else {
+        // Automatic mode: one bounded model decision, then at most one web
+        // search. Research only adds untrusted context; it can never change
+        // authorization, policy or the verification standard.
+        try {
+          const decision = await decideResearch(provider, {
+            request: input.text,
+            context: 'No prior context.',
+            directory: store.root,
+            signal: AbortSignal.timeout(30000),
+            timeoutMs: 30000,
+          });
+          if (decision.needsResearch && decision.query) {
+            researchQuery = decision.query;
+            sources = (
+              await webSearch(decision.query, AbortSignal.timeout(20000))
+            ).results;
+          }
+        } catch {
+          // A failed research decision must not fail the request; answer
+          // without web context instead.
+        }
+      }
       const instruction =
         input.preset === 'summarize'
           ? 'Summarize the supplied text in clear prose. Preserve key facts, caveats, and named entities.'
@@ -395,7 +439,11 @@ export async function startDaemon(
       json(res, 200, {
         answer: result.answer,
         provider: result.provider,
-        web: input.web,
+        web: researchMode,
+        research_query: researchQuery,
+        research_provider: sources.length
+          ? (searchConfiguration().provider ?? null)
+          : null,
         sources,
       });
       return;

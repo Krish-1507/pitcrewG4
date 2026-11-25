@@ -29,10 +29,18 @@ Node 22.13+, Git and pnpm 11.19.0 are required. The packaged CLI includes the pi
 
 ## 2. Authenticate a model yourself
 
-PitCrew never reads or stores your model credentials.
+PitCrew never writes a key value into configuration files, databases, logs,
+prompts or evidence artifacts. Keys live either in an environment variable
+(referenced by name only) or, when registered through the daemon, in the
+operating system keychain — Windows Credential Manager, macOS Keychain or
+Linux Secret Service. PitCrew never reads existing Codex authentication.
 
 - Codex: install the official CLI and authenticate it normally.
-- Ollama or another OpenAI-compatible endpoint: have the endpoint ready and use an environment variable for any key.
+- OpenAI, Claude, Gemini, OpenRouter, DeepSeek, Groq, Mistral, xAI or
+  Together: put the API key in the environment variable setup suggests
+  (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, ...).
+- Ollama, LM Studio or llama.cpp: start the local server; setup detects your
+  hardware, suggests a model size that fits, and lists installed models.
 
 ## 3. Generate a trusted config
 
@@ -42,7 +50,10 @@ pitcrew setup
 
 This writes `~/.pitcrew/config.json` (or `$PITCREW_HOME/config.json`) with:
 
-- the provider and model you choose;
+- the provider preset you choose (codex, openai, anthropic, gemini, openrouter,
+  deepseek, groq, mistral, xai, together, freellmapi, ollama, lmstudio,
+  llamacpp, or custom); for local presets it detects CPU, RAM and GPU and
+  suggests a model tier that fits;
 - the current Node executable and the installed `openpitstop/dist/cli.js` as the referee;
 - `stack`, `architecture` and `baseline` referee layers;
 - `node --test` as the project test command;
@@ -111,6 +122,8 @@ pitcrew app
 
 `app` opens the printed URL in your browser. Use `pitcrew ui` to print the URL and wait without opening a browser. The bearer token travels in the URL fragment and is kept in the browser session. Press `Ctrl+C` to stop the daemon. Cross-origin API requests are rejected.
 
+As a desktop application (Windows first), the Electron shell wraps the same interface: native window and tray, daemon lifecycle owned by the app, token injected automatically. Build it with `pnpm --filter @pitcrew/desktop dist`; the installer lands at `release/desktop/PitCrew-Setup-<version>.exe`. The installer is unsigned today.
+
 ## Quick Assistant, memory, assistants and research
 
 ```sh
@@ -127,7 +140,7 @@ pitcrew assistants
 
 Memory notes are global or project-scoped. Project notes are attached to a project ID and are included only for that repository; global notes apply everywhere. Assistants store a prompt plus optional `route_id` and `model`. Project assistants are rejected by mission creation for another project and by Quick Assistant, which accepts global assistants only. Memory and assistant text is untrusted context, not policy.
 
-Web research is disabled until configured:
+Web research needs no configuration: a keyless DuckDuckGo searcher is built in and runs only when research is used. For a contracted provider, set:
 
 ```sh
 # Local SearXNG (HTTPS, or HTTP only on loopback)
@@ -137,7 +150,15 @@ PITCREW_SEARXNG_URL=http://127.0.0.1:8080 pitcrew app
 PITCREW_BRAVE_SEARCH_API_KEY=... pitcrew app
 ```
 
-Only the normalized query is sent to the configured provider. Results are treated as untrusted context. `GET /v1/research` reports whether research is configured; `POST /v1/research` performs a query. Quick Assistant uses the first 500 normalized characters as its search query when web search is enabled.
+Only the normalized query is sent. Results are treated as untrusted context. `GET /v1/research` reports the active provider; `POST /v1/research` performs a query. Quick Assistant research is automatic by default: one bounded model decision, then at most one search round. Set the request's `web` field to `true` to always search, `false` to never search; the Mission Control view offers the same three modes.
+
+An interactive session is available in any terminal:
+
+```sh
+pitcrew
+```
+
+Type a task to start a mission, or use `/quick`, `/research`, `/memory`, `/doctor`, `/providers`, `/skills`, `/story`, `/open`, `/app` and `/help`. `/exit` leaves the session.
 
 If routing is configured, Quick Assistant requests the `quick-assistant` role. Add that role to an eligible route, or keep the single-provider configuration where routing is absent.
 

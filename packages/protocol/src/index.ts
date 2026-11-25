@@ -47,6 +47,21 @@ export const providerSchema = z.discriminatedUnion('type', [
         .optional(),
     })
     .strict(),
+  z
+    .object({
+      type: z.literal('anthropic'),
+      baseUrl: z.string().url(),
+      model: z.string().min(1),
+      secretRef: z
+        .string()
+        .regex(/^keychain:pitcrew\/prov_[a-f0-9-]+$/)
+        .optional(),
+      apiKeyEnv: z
+        .string()
+        .regex(/^[A-Z][A-Z0-9_]*$/)
+        .optional(),
+    })
+    .strict(),
 ]);
 export type ProviderConfig = z.infer<typeof providerSchema>;
 export const configSchema = z
@@ -635,7 +650,7 @@ export const quickRequestSchema = z
       .string()
       .regex(/^ast_[a-f0-9-]+$/)
       .optional(),
-    web: z.boolean().default(false),
+    web: z.boolean().optional(),
   })
   .strict();
 export type QuickRequest = z.infer<typeof quickRequestSchema>;

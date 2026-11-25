@@ -16,7 +16,7 @@ Response time is best effort until a maintained stable release is published.
 - Secret values go to the OS keychain, never to the database, logs or evidence files.
 - Model output is treated as untrusted data; policy decides what it may do.
 - Quick Assistant output is a draft, never verification.
-- Web research is disabled by default. When configured, only the normalized query leaves the machine; results are untrusted context.
+- Web research uses a built-in keyless DuckDuckGo searcher by default (only the normalized query leaves the machine; results are untrusted context). A SearXNG instance or Brave key overrides it. Research cannot affect authorization or verification.
 - Memory notes and assistant prompts are local SQLite records, not a secret store. Text containing a configured secret is rejected.
 - Historical verdicts are projected as stale when the candidate's bytes change.
 - Verification requires the independent OpenPitStop referee. Without it, the result is NOT_PROVEN.

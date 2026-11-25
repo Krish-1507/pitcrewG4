@@ -3,7 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "preflight:electron": "node -e \"const fs=require('fs');const exe=process.platform==='win32'?'electron.exe':'electron';if(!fs.existsSync('node_modules/electron/dist/'+exe)){console.error('Electron binary missing from node_modules/electron/dist. Fix: delete that dist folder, then run node node_modules/electron/install.js. If extraction keeps producing only locales/, an antivirus or controlled-folder setting is likely blocking writes.');process.exit(1)}\"",
+    "desktop": "pnpm run --if-present preflight:electron && node build.mjs && electron .",
+    "dist": "node build.mjs && electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.2.2",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "dev.pitcrew.desktop",
+    "productName": "PitCrew",
+    "asar": true,
+    "files": [
+      "electron/**",
+      "dist/**"
+    ],
+    "directories": {
+      "output": "../../release/desktop"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "PitCrew-Setup-${version}.exe"
+    }
   }
 }
