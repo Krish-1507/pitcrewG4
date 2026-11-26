@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "package:cli": "pnpm build && node scripts/build-cli-package.mjs",
     "pack:cli": "pnpm package:cli && npm pack ./release/cli --pack-destination ./release",
+    "package:desktop": "node scripts/package-desktop.mjs",
     "pitcrew": "node apps/cli/dist/index.js",
     "onboard": "node scripts/onboard.mjs",
     "bench": "node benchmarks/pitcrew-core/run.mjs",

@@ -5,10 +5,11 @@ INSTALL_ROOT="${PITCREW_INSTALL_ROOT:-$HOME/PitCrew}"
 SOURCE_ROOT="${PITCREW_SOURCE:-$INSTALL_ROOT/source}"
 CLI_ROOT="$INSTALL_ROOT/cli"
 BIN_ROOT="$INSTALL_ROOT/bin"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
-for command in node npm git pnpm; do
+for command in node npm; do
   if ! command -v "$command" >/dev/null 2>&1; then
-    echo "Missing $command. Install Node.js 22.13+, Git, and pnpm 11.19.0." >&2
+    echo "Missing $command. Install Node.js 22.13+ (npm ships with it)." >&2
     exit 1
   fi
 done
@@ -16,28 +17,50 @@ done
 node -e "const v=process.versions.node.split('.').map(Number); if (v[0] < 22 || (v[0] === 22 && v[1] < 13)) process.exit(1)" ||
   { echo 'Node.js 22.13 or newer is required.' >&2; exit 1; }
 
-mkdir -p "$INSTALL_ROOT"
-
-if [ ! -d "$SOURCE_ROOT" ]; then
-  echo "Cloning PitCrew into $SOURCE_ROOT"
-  git clone --depth 1 https://github.com/Krish-1507/pitcrewG4.git "$SOURCE_ROOT"
-elif [ ! -f "$SOURCE_ROOT/pnpm-lock.yaml" ]; then
-  echo "$SOURCE_ROOT is not a PitCrew source checkout." >&2
-  exit 1
+# Fast path: install a prebuilt tarball directly. Only Node and npm are
+# needed; Git and pnpm are required solely for the source-build fallback.
+TARBALL="${PITCREW_TARBALL:-}"
+if [ -n "$TARBALL" ]; then
+  if [ ! -f "$TARBALL" ]; then
+    echo "Tarball not found: $TARBALL" >&2
+    exit 1
+  fi
+else
+  TARBALL="$(ls -t "$SCRIPT_DIR"/pitcrew-cli-*.tgz "$SCRIPT_DIR"/release/pitcrew-cli-*.tgz 2>/dev/null | head -n 1 || true)"
 fi
 
-echo 'Installing dependencies and building PitCrew...'
-pnpm --dir "$SOURCE_ROOT" install --frozen-lockfile
-pnpm --dir "$SOURCE_ROOT" build
-pnpm --dir "$SOURCE_ROOT" package:cli
-
-TARBALL="$(ls -t "$SOURCE_ROOT"/release/pitcrew-cli-*.tgz 2>/dev/null | head -n 1 || true)"
 if [ -z "$TARBALL" ]; then
-  echo 'Packaged CLI tarball was not produced.' >&2
-  exit 1
+  for command in git pnpm; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+      echo "Missing $command. Install it, or place a pitcrew-cli-*.tgz next to this installer for the prebuilt fast path." >&2
+      exit 1
+    fi
+  done
+  mkdir -p "$INSTALL_ROOT"
+
+  if [ ! -d "$SOURCE_ROOT" ]; then
+    echo "Cloning PitCrew into $SOURCE_ROOT"
+    git clone --depth 1 https://github.com/Krish-1507/pitcrewG4.git "$SOURCE_ROOT"
+  elif [ ! -f "$SOURCE_ROOT/pnpm-lock.yaml" ]; then
+    echo "$SOURCE_ROOT is not a PitCrew source checkout." >&2
+    exit 1
+  fi
+
+  echo 'Installing dependencies and building PitCrew...'
+  pnpm --dir "$SOURCE_ROOT" install --frozen-lockfile
+  pnpm --dir "$SOURCE_ROOT" build
+  pnpm --dir "$SOURCE_ROOT" package:cli
+
+  TARBALL="$(ls -t "$SOURCE_ROOT"/release/pitcrew-cli-*.tgz 2>/dev/null | head -n 1 || true)"
+  if [ -z "$TARBALL" ]; then
+    echo 'Packaged CLI tarball was not produced.' >&2
+    exit 1
+  fi
+else
+  echo "Using the prebuilt CLI package: $TARBALL"
 fi
 
-mkdir -p "$CLI_ROOT" "$BIN_ROOT"
+mkdir -p "$INSTALL_ROOT" "$CLI_ROOT" "$BIN_ROOT"
 echo "Installing the PitCrew CLI into $CLI_ROOT"
 npm install -g --prefix "$CLI_ROOT" "$TARBALL"
 

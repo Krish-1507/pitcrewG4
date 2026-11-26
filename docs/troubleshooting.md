@@ -71,10 +71,18 @@ The default execution policy does not fall back to host execution. Either instal
 
 CI checks out with LF line endings and runs `pnpm format:check`. Run `pnpm format` before pushing. Windows-specific failures should be reproduced with the same Node and pnpm versions CI uses.
 
+## Electron installed but incomplete during development
+
+Symptom: `node_modules/electron/dist` holds only `locales/` and `path.txt`/`dist/version` are missing, although `pnpm install` exits cleanly. Root cause: on some Node builds (observed on Node 26) the `extract-zip` read stream that `electron/install.js` uses stalls, so the extraction never settles and Node exits with the partial tree. The cached zip itself is intact.
+
+Repair automatically:
+
+```sh
+pnpm --dir apps/desktop run preflight:electron
+```
+
+This verifies the cached zip's SHA-256 against the package's own `checksums.json` and expands it with the platform archive tool (`Expand-Archive` on Windows). No network access is needed when the zip is already cached.
+
 ## Desktop app cannot find the daemon runtime
 
-The Electron shell reuses the CLI runtime. Install Node.js 22.13+, run the PitCrew installer (or `npm install -g @pitcrew/cli`), and run `pitcrew setup` once so `~/.pitcrew/config.json` exists. Set `PITCREW_DAEMON` or `PITCREW_INSTALL_ROOT` if the CLI was installed somewhere non-default.
-
-## Electron binary fails to install during development
-
-If `pnpm install` reports Electron installed but `node_modules/electron/dist` is incomplete (only `locales`), remove that `dist` folder and run `node node_modules/electron/install.js` again. Some antivirus or controlled-folder setups block parts of the extraction. Packaging with electron-builder downloads its own Electron artifacts and is unaffected.
+The packaged desktop app carries its own runtime under `resources/pitcrew` (daemon bundle, Mission Control assets, referee dependency). If it was launched without that runtime — for example a plain `electron .` in development — it looks for the CLI install: install Node.js 22.13+, run the PitCrew installer (or `npm install -g @pitcrew/cli`), and run `pitcrew setup` once so `~/.pitcrew/config.json` exists. Set `PITCREW_DAEMON` or `PITCREW_INSTALL_ROOT` if the CLI was installed somewhere non-default.

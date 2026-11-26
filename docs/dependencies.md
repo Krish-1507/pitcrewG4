@@ -24,6 +24,8 @@ Web research and Quick Assistant add no dependency. They use the Node.js built-i
 
 Desktop app: Electron 38.2.2 (MIT, development of `apps/desktop`) provides the native window and tray, and electron-builder 26.0.12 (MIT, development) produces the Windows NSIS installer. Both are devDependencies of `@pitcrew/desktop` only; they never enter the CLI runtime. The Electron toolchain resolves one git dependency (`@electron/node-gyp`), allowed deliberately in `.npmrc` and documented there. The desktop shell imports only Node and Electron APIs; it spawns the same daemon entry the CLI uses and runs no mission logic.
 
+Desktop packaging adds no runtime dependency: `scripts/build-desktop-resources.mjs` stages the already-built daemon bundle, Mission Control assets, and the three packages that stay external in that bundle (openpitstop 1.10.0, playwright-core 1.64.1, @vscode/tree-sitter-wasm 0.3.1 — each already recorded above), and `scripts/package-desktop.mjs` copies them into the packaged app because electron-builder's file matcher excludes node_modules directories from extraResources. `scripts/repair-electron.mjs` verifies the cached Electron zip checksum and expands it with the platform archive tool; it adds no dependency and only replaces the broken extraction path.
+
 Browser lab: playwright-core 1.64.1 (Apache-2.0, runtime) drives a locally installed Chrome or Edge; no browser is downloaded by the package. axe-core 4.14.0 (MPL-2.0, runtime) is injected into pages for accessibility audits. Both are isolated in `packages/browser-lab`.
 
 Global CLI artifact: the packaged `@pitcrew/cli` declares `openpitstop` as an

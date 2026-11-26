@@ -1,6 +1,7 @@
 param(
   [string]$InstallRoot = (Join-Path $env:USERPROFILE 'PitCrew'),
   [string]$Source = '',
+  [string]$Tarball = '',
   [switch]$SkipPath,
   [switch]$NoShortcut,
   [switch]$NoSetup
@@ -16,8 +17,6 @@ function Require-Command([string]$Name, [string]$Hint) {
 
 Require-Command 'node' 'Install Node.js 22.13 or newer.'
 Require-Command 'npm' 'npm ships with Node.js.'
-Require-Command 'git' 'Install Git and retry.'
-Require-Command 'pnpm' 'Install pnpm 11.19.0 (corepack is not assumed).'
 
 $nodeVersion = [version](& node -p 'process.versions.node')
 if ($nodeVersion -lt [version]'22.13.0') {
@@ -25,39 +24,61 @@ if ($nodeVersion -lt [version]'22.13.0') {
 }
 
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
-$SourceRoot = if ($Source) {
-  [System.IO.Path]::GetFullPath($Source)
-} else {
-  Join-Path $InstallRoot 'source'
-}
 $NpmPrefix = Join-Path $InstallRoot 'cli'
 $BinRoot = Join-Path $InstallRoot 'bin'
 New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
 
-if (-not (Test-Path -LiteralPath $SourceRoot)) {
-  Write-Host "Cloning PitCrew into $SourceRoot"
-  & git clone --depth 1 https://github.com/Krish-1507/pitcrewG4.git $SourceRoot
-  if ($LASTEXITCODE -ne 0) { throw 'git clone failed.' }
-} elseif (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'pnpm-lock.yaml'))) {
-  throw "$SourceRoot is not a PitCrew source checkout."
+# Fast path: install a prebuilt tarball directly. Only Node and npm are
+# needed; Git and pnpm are required solely for the source-build fallback.
+$tarballPath = $null
+if ($Tarball) {
+  $tarballPath = [System.IO.Path]::GetFullPath($Tarball)
+  if (-not (Test-Path -LiteralPath $tarballPath)) { throw "Tarball not found: $tarballPath" }
+} else {
+  $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+  $tarballPath = Get-ChildItem -LiteralPath $scriptDir -Filter 'pitcrew-cli-*.tgz' -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime | Select-Object -Last 1
+  if (-not $tarballPath) {
+    $tarballPath = Get-ChildItem -LiteralPath (Join-Path $scriptDir 'release') -Filter 'pitcrew-cli-*.tgz' -ErrorAction SilentlyContinue |
+      Sort-Object LastWriteTime | Select-Object -Last 1
+  }
+  if ($tarballPath) { $tarballPath = $tarballPath.FullName }
 }
 
-Write-Host 'Installing dependencies and building PitCrew...'
-& pnpm --dir $SourceRoot install --frozen-lockfile
-if ($LASTEXITCODE -ne 0) { throw 'pnpm install failed.' }
-& pnpm --dir $SourceRoot build
-if ($LASTEXITCODE -ne 0) { throw 'pnpm build failed.' }
-& pnpm --dir $SourceRoot package:cli
-if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed.' }
+if ($tarballPath) {
+  Write-Host "Using the prebuilt CLI package: $tarballPath"
+} else {
+  Require-Command 'git' 'Install Git, or place a pitcrew-cli-*.tgz next to this installer for the prebuilt fast path.'
+  Require-Command 'pnpm' 'Install pnpm 11.19.0, or place a pitcrew-cli-*.tgz next to this installer for the prebuilt fast path.'
+  $SourceRoot = if ($Source) {
+    [System.IO.Path]::GetFullPath($Source)
+  } else {
+    Join-Path $InstallRoot 'source'
+  }
+  if (-not (Test-Path -LiteralPath $SourceRoot)) {
+    Write-Host "Cloning PitCrew into $SourceRoot"
+    & git clone --depth 1 https://github.com/Krish-1507/pitcrewG4.git $SourceRoot
+    if ($LASTEXITCODE -ne 0) { throw 'git clone failed.' }
+  } elseif (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'pnpm-lock.yaml'))) {
+    throw "$SourceRoot is not a PitCrew source checkout."
+  }
 
-$tarball = Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'release') -Filter 'pitcrew-cli-*.tgz' |
-  Sort-Object LastWriteTime |
-  Select-Object -Last 1
-if (-not $tarball) { throw 'Packaged CLI tarball was not produced.' }
+  Write-Host 'Installing dependencies and building PitCrew...'
+  & pnpm --dir $SourceRoot install --frozen-lockfile
+  if ($LASTEXITCODE -ne 0) { throw 'pnpm install failed.' }
+  & pnpm --dir $SourceRoot build
+  if ($LASTEXITCODE -ne 0) { throw 'pnpm build failed.' }
+  & pnpm --dir $SourceRoot package:cli
+  if ($LASTEXITCODE -ne 0) { throw 'CLI packaging failed.' }
+
+  $tarballPath = (Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'release') -Filter 'pitcrew-cli-*.tgz' |
+    Sort-Object LastWriteTime | Select-Object -Last 1).FullName
+  if (-not $tarballPath) { throw 'Packaged CLI tarball was not produced.' }
+}
 
 New-Item -ItemType Directory -Force -Path $NpmPrefix, $BinRoot | Out-Null
 Write-Host "Installing the PitCrew CLI into $NpmPrefix"
-& npm install -g --prefix $NpmPrefix $tarball.FullName
+& npm install -g --prefix $NpmPrefix $tarballPath
 if ($LASTEXITCODE -ne 0) { throw 'npm install failed.' }
 
 $launcher = Join-Path $BinRoot 'pitcrew-desktop.cmd'

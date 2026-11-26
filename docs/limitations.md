@@ -26,7 +26,7 @@ PitCrew is an early development build. The following limitations are current fac
 - Quick Assistant accepts global assistants only. Project assistants are restricted to their project.
 - Assistant route and model overrides can fail if the selected route is no longer eligible. A configured routing profile needs a route with the `quick-assistant` role for Quick Assistant.
 - The assistant-feature and provider-preset changes are included in the strict verification of commit `60a1e79` (CLEAN, TRUSTWORTHY 100/100). The desktop Electron build, its NSIS installer, and the interactive session's interactive behaviour remain NOT_PROVEN.
-- The Electron binary extraction failed on at least one development machine (incomplete `dist/` despite a clean exit); the desktop build is therefore `NOT_PROVEN` locally until reproduced on a clean environment. electron-builder packaging downloads its own artifacts and is expected to be unaffected, but no installer has been produced or run yet.
+- The Electron binary extraction can fail on Node builds where the `extract-zip` read stream stalls (observed on Node 26): `electron/install.js` exits 0 while writing only `dist/locales/`. The downloaded zip is intact and checksum-verified; `pnpm run preflight:electron` in `apps/desktop` auto-repairs from the cached zip with the platform archive tool. NSIS installer generation additionally requires executing the freshly built installer stub (electron-builder's uninstaller-stub step), which sandboxed shells may refuse — run it in a normal terminal.
 
 ## Models and benchmarks
 
@@ -42,7 +42,7 @@ PitCrew is an early development build. The following limitations are current fac
 ## Platforms
 
 - CI covers Windows and Linux. A clean macOS installation has not been verified in this repository.
-- The desktop app is Windows-first (NSIS installer via electron-builder) and unsigned: expect SmartScreen/Gatekeeper warnings until code signing is added. Linux and macOS Electron packaging, tray icon assets, and the desktop app on any platform are `NOT_PROVEN`.
+- The desktop app is Windows-first and unsigned: expect SmartScreen/Gatekeeper warnings until code signing is added. The portable `win-unpacked` build is verified end-to-end (packaged binary boots the packaged daemon, authenticated API responds); the NSIS single-file installer path is documented but was not produced in the sandboxed environment, and Linux/macOS packaging and tray icon assets are `NOT_PROVEN`.
 
 ## Scope
 

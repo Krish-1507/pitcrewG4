@@ -1,14 +1,16 @@
 {
   "name": "@pitcrew/desktop",
   "version": "0.1.0",
+  "description": "PitCrew desktop application: local-first AI software engineering orchestration with independent verification.",
+  "author": "PitCrew contributors",
   "private": true,
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
     "build": "node build.mjs",
-    "preflight:electron": "node -e \"const fs=require('fs');const exe=process.platform==='win32'?'electron.exe':'electron';if(!fs.existsSync('node_modules/electron/dist/'+exe)){console.error('Electron binary missing from node_modules/electron/dist. Fix: delete that dist folder, then run node node_modules/electron/install.js. If extraction keeps producing only locales/, an antivirus or controlled-folder setting is likely blocking writes.');process.exit(1)}\"",
+    "preflight:electron": "node ../../scripts/repair-electron.mjs",
     "desktop": "pnpm run --if-present preflight:electron && node build.mjs && electron .",
-    "dist": "node build.mjs && electron-builder --win --publish never"
+    "dist": "pnpm run --if-present preflight:electron && node build.mjs && electron-builder --win --publish never"
   },
   "devDependencies": {
     "electron": "38.2.2",
@@ -21,6 +23,12 @@
     "files": [
       "electron/**",
       "dist/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../../release/desktop-resources",
+        "to": "pitcrew"
+      }
     ],
     "directories": {
       "output": "../../release/desktop"

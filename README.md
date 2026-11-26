@@ -60,15 +60,37 @@ pnpm package:cli
 npm install -g ./release/pitcrew-cli-0.1.0-dev.tgz
 ```
 
-### Desktop app (Windows first)
+### One-command installers
 
-The Electron shell packages Mission Control as a real desktop application: native window and tray, daemon lifecycle owned by the app, and the session token injected automatically — no URL copying. Build the installer with:
+Both installers have a prebuilt fast path that needs only Node and npm — no Git, no pnpm, no build. Put (or point at) a `pitcrew-cli-*.tgz` next to the installer:
 
-```sh
-pnpm --filter @pitcrew/desktop dist
+```powershell
+.\install.ps1 -Tarball .\release\pitcrew-cli-0.1.0-dev.tgz -InstallRoot D:\PitCrew
 ```
 
-which writes `release/desktop/PitCrew-Setup-<version>.exe`. The installer is currently unsigned (a SmartScreen warning is expected until code signing is added), and the desktop app reuses the CLI runtime installed by the steps above; it is Windows-first and Linux/macOS packaging is `NOT_PROVEN`.
+```sh
+PITCREW_TARBALL=./release/pitcrew-cli-0.1.0-dev.tgz ./install.sh
+```
+
+A tarball next to the installer is detected automatically. Without one, the installer falls back to the full source path (clone, pnpm build, package, install). Both paths install under your user profile, create launchers, and touch nothing system-wide.
+
+### Desktop app (Windows first)
+
+The Electron shell packages Mission Control as a real desktop application: native window and tray, daemon lifecycle owned by the app, and the session token injected automatically — no URL copying. The packaged app carries its own runtime: the same daemon bundle the CLI installs, the Mission Control assets, and the referee dependency, so it runs without a separate CLI install.
+
+Build the portable app (verified end-to-end: the packaged binary boots the packaged daemon and serves the authenticated API):
+
+```sh
+pnpm package:desktop
+```
+
+This writes `release/desktop/win-unpacked/PitCrew.exe` — a portable app you can copy anywhere and run. For the single-file NSIS installer (`release/desktop/PitCrew-Setup-<version>.exe`), run the packaging step in a normal (non-sandboxed) terminal:
+
+```sh
+pnpm --dir apps/desktop exec electron-builder --win --publish never
+```
+
+The installer is currently unsigned (a SmartScreen warning is expected until code signing is added). Linux and macOS packaging is `NOT_PROVEN`.
 
 ## First-time setup
 

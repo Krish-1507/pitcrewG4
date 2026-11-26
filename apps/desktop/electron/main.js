@@ -80,6 +80,14 @@ function refereeMissingMessage() {
   );
 }
 
+function firstExisting(paths) {
+  for (const candidate of paths) {
+    if (candidate && existsSync(join(candidate, 'index.html')))
+      return candidate;
+  }
+  return null;
+}
+
 function startDaemon() {
   const entry = daemonEntry();
   if (!entry) throw new Error('PitCrew daemon runtime not found.');
@@ -91,9 +99,14 @@ function startDaemon() {
       ...process.env,
       // Run the Electron binary as plain Node for the daemon child.
       ELECTRON_RUN_AS_NODE: '1',
-      PITCREW_UI_ROOT: existsSync(join(dirname, '..', 'dist', 'index.html'))
-        ? join(dirname, '..', 'dist')
-        : process.env.PITCREW_UI_ROOT,
+      // UI assets live in real files (asar is not readable from an
+      // ELECTRON_RUN_AS_NODE child): prefer the staged runtime, then the
+      // workspace build.
+      PITCREW_UI_ROOT:
+        firstExisting([
+          resolve(process.resourcesPath ?? '', 'pitcrew', 'dist', 'desktop'),
+          join(dirname, '..', 'dist'),
+        ]) ?? process.env.PITCREW_UI_ROOT,
     },
   });
   child.stderr?.on('data', (chunk) => {

@@ -137,6 +137,25 @@ export async function streamMission(deps: {
   return { missionId };
 }
 
+export interface SessionCommand {
+  command: string;
+  rest: string;
+}
+
+/** Split a session line into a command and its argument text. Slash
+ * commands are case-sensitive keywords; anything else is a mission. */
+export function parseSessionCommand(line: string): SessionCommand {
+  if (line.startsWith('/')) {
+    const split = line.indexOf(' ');
+    const command = split === -1 ? line : line.slice(0, split);
+    return {
+      command: command.toLowerCase(),
+      rest: line.slice(command.length).trimStart(),
+    };
+  }
+  return { command: 'task', rest: line };
+}
+
 const quickResult = z.object({
   answer: z.string(),
   provider: z.string(),
@@ -181,18 +200,21 @@ export async function runInteractiveSession(deps: {
       break;
     }
     if (!line) continue;
-    if (line === '/exit' || line === '/quit' || line === '/q') break;
-    if (line === '/help') {
+    const input = parseSessionCommand(line);
+    const command = input.command;
+    const rest = input.rest;
+    if (command === '/exit' || command === '/quit' || command === '/q') break;
+    if (command === '/help') {
       console.log('\n' + terminalHelp + '\n');
       continue;
     }
-    if (line === '/app') {
+    if (command === '/app') {
       deps.openApp();
       console.log('Mission Control: ' + deps.missionControlUrl);
       continue;
     }
-    if (line.startsWith('/quick')) {
-      const text = line.slice('/quick'.length).trim();
+    if (command === '/quick') {
+      const text = rest;
       if (!text) {
         console.log('Usage: /quick <text>');
         continue;
@@ -214,8 +236,8 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line.startsWith('/research')) {
-      const query = line.slice('/research'.length).trim();
+    if (command === '/research') {
+      const query = rest;
       if (!query) {
         console.log('Usage: /research <query>');
         continue;
@@ -233,8 +255,7 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line.startsWith('/memory')) {
-      const rest = line.slice('/memory'.length).trim();
+    if (command === '/memory') {
       const action = rest.split(/\s+/)[0] ?? '';
       try {
         if (action === 'add') {
@@ -261,7 +282,7 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line === '/doctor') {
+    if (command === '/doctor') {
       try {
         console.log(JSON.stringify(await api('doctor'), null, 2) + '\n');
       } catch (error) {
@@ -269,7 +290,7 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line === '/providers') {
+    if (command === '/providers') {
       try {
         const listed = z
           .object({
@@ -300,7 +321,7 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line === '/skills') {
+    if (command === '/skills') {
       try {
         const listed = z
           .object({
@@ -318,7 +339,7 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line === '/open') {
+    if (command === '/open') {
       try {
         const opened = z
           .object({
@@ -338,8 +359,8 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line.startsWith('/story')) {
-      const id = line.slice('/story'.length).trim();
+    if (command === '/story') {
+      const id = rest;
       if (!/^prj_[a-f0-9-]+$/.test(id)) {
         console.log('Usage: /story <projectId> (see /open for the id)');
         continue;
@@ -353,16 +374,14 @@ export async function runInteractiveSession(deps: {
       }
       continue;
     }
-    if (line.startsWith('/')) {
+    if (command.startsWith('/')) {
       console.log(
-        'Unknown command ' +
-          line.split(/\s+/)[0] +
-          '. Type /help for commands.\n',
+        'Unknown command ' + command + '. Type /help for commands.\n',
       );
       continue;
     }
     try {
-      await deps.runMission(line);
+      await deps.runMission(rest);
     } catch (error) {
       console.log('Mission failed: ' + message(error) + '\n');
     }
