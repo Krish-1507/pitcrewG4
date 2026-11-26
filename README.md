@@ -241,7 +241,7 @@ This is fixture-validation mode. It proves the harness reproduces each intended 
 
 ## Modules
 
-PitCrew is 17 packages and 3 apps. The deterministic suite passes 104 tests in 18 files. Coverage is not uniform: `orchestrator`, `apps/cli`, and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
+PitCrew is 17 packages and 3 apps. The deterministic suite passes 105 tests in 19 files. Coverage is not uniform: `orchestrator`, `apps/cli`, and `apps/desktop` rely on integration or manual acceptance rather than dedicated unit tests. The full module-by-module audit is [docs/modules.md](docs/modules.md).
 
 PitCrew ships 14 validated skills — the nine engineering skills plus `web-research`, `design-taste-frontend`, `unslop`, `graphify` and `ponytail`, each adapted to the permission model with credits and licences recorded in their `SKILL.md` files.
 
@@ -306,7 +306,7 @@ Neither acceptance script is part of the deterministic suite.
 - Automatic research is bounded to one decision call and one search round per request; it is not an open-ended browsing loop.
 - The desktop app is Windows-first and unsigned; Linux/macOS Electron packaging and code signing are `NOT_PROVEN`.
 - Memory and assistants are local SQLite records without embeddings, sync, or automatic summarization.
-- The assistant and provider/session/desktop changes are included in the OpenPitStop strict verification of commit `60a1e79` (OK, CLEAN integrity, TRUSTWORTHY 100/100, 104/104 tests). The desktop build and installer remain NOT_PROVEN.
+- The assistant, provider/session/desktop and packaging changes are included in the OpenPitStop strict verification of commit `ea4ab55` (OK, CLEAN integrity, TRUSTWORTHY 100/100, 105/105 tests). The portable desktop build is verified end to end; the NSIS single-file installer remains NOT_PROVEN.
 - Benchmark results are fixture validation only; no model contender was run.
 - Browser QA uses a local Chrome or Edge and does not download one.
 - The referee runs on the host; a containerized referee is not implemented.

@@ -74,4 +74,21 @@ One test-policy reversal is part of this change and is recorded here deliberatel
 
 Still NOT_PROVEN for this extension: the Electron desktop build (the Electron binary extraction produced an incomplete `node_modules/electron/dist` on the development machine despite a clean installer exit; `pnpm run preflight:electron` in `apps/desktop` now fails loudly with the repair steps), the produced NSIS installer, Linux/macOS desktop packaging, and the interactive CLI session's interactive behaviour (structural code only; manual acceptance pending). The deterministic suite, typecheck, lint and format checks pass on the committed tree.
 
+## OpenPitStop verification of the packaging and install round
+
+Result for source commit `ea4ab557acb0def17acb86a060a401a0b962a969` (prebuilt-tarball install fast path, self-contained desktop packaging, Electron auto-repair, session command routing):
+
+- verdict: OK, exit code 0, not blocked, not stale;
+- integrity: CLEAN, 0 confirmed, 0 suspicious;
+- honesty: 100, TRUSTWORTHY;
+- tests: 105/105 passed, zero regression deltas;
+- sealed evidence digest: `ad3a72496ce0f52f…`.
+
+Executed acceptance in this round, in addition to the deterministic suite:
+
+- the prebuilt-tarball install fast path installed the CLI into a temporary prefix in 15 seconds with no Git and no pnpm, and the installed CLI runs (`-SkipPath -NoShortcut -NoSetup`, temp root, no system changes);
+- the portable desktop package (`pnpm package:desktop`) was smoke-tested end to end: the packaged `PitCrew.exe` run under `ELECTRON_RUN_AS_NODE` forked the packaged daemon exactly as the Electron shell does, received the ready handshake, and served an authenticated `/v1/doctor` request — proving the packaged runtime (daemon bundle, referee, playwright-core, tree-sitter externals) resolves without the workspace.
+
+Remaining NOT_PROVEN for this round: the NSIS single-file installer (electron-builder's uninstaller-stub step executes the freshly built installer; sandboxed shells refuse to run it, so the documented command must be run in a normal terminal), Linux/macOS desktop packaging, and interactive TTY acceptance of the session (the command routing is unit-tested; the live loop needs a real terminal).
+
 This document is updated after the verified source commit. The verdict binds to commit `60a1e79` exactly; a later housekeeping commit removes the dead `packages/config/src/hardware.ts` stub (comment-only, unreferenced) and updates documentation, which does not affect the recorded evidence.

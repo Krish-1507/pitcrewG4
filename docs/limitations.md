@@ -10,7 +10,7 @@ PitCrew is an early development build. The following limitations are current fac
 
 ## Test coverage
 
-- The deterministic suite is 104 tests in 18 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
+- The deterministic suite is 105 tests in 19 files. It does not cover every module directly; the per-module map is [modules.md](modules.md).
 - `orchestrator` full-mission behaviour is exercised by the live acceptance script, not CI.
 - `apps/cli` and `apps/desktop` have acceptance and manual coverage; the desktop UI has no automated browser interaction test, and the interactive CLI session and Electron shell have manual acceptance only.
 - A live mission requires an installed, authenticated model provider.
@@ -25,7 +25,7 @@ PitCrew is an early development build. The following limitations are current fac
 - Memory notes and assistant prompts are local SQLite records. There are no embeddings, semantic search, sync, or automatic summarization.
 - Quick Assistant accepts global assistants only. Project assistants are restricted to their project.
 - Assistant route and model overrides can fail if the selected route is no longer eligible. A configured routing profile needs a route with the `quick-assistant` role for Quick Assistant.
-- The assistant-feature and provider-preset changes are included in the strict verification of commit `60a1e79` (CLEAN, TRUSTWORTHY 100/100). The desktop Electron build, its NSIS installer, and the interactive session's interactive behaviour remain NOT_PROVEN.
+- The assistant-feature, provider-preset and packaging changes are included in the strict verification of commit `ea4ab55` (CLEAN, TRUSTWORTHY 100/100). The NSIS single-file installer and the interactive session's live TTY behaviour remain NOT_PROVEN; the portable desktop build is verified end to end.
 - The Electron binary extraction can fail on Node builds where the `extract-zip` read stream stalls (observed on Node 26): `electron/install.js` exits 0 while writing only `dist/locales/`. The downloaded zip is intact and checksum-verified; `pnpm run preflight:electron` in `apps/desktop` auto-repairs from the cached zip with the platform archive tool. NSIS installer generation additionally requires executing the freshly built installer stub (electron-builder's uninstaller-stub step), which sandboxed shells may refuse — run it in a normal terminal.
 
 ## Models and benchmarks
