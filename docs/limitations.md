@@ -25,7 +25,7 @@ PitCrew is an early development build. The following limitations are current fac
 - Memory notes and assistant prompts are local SQLite records. There are no embeddings, semantic search, sync, or automatic summarization.
 - Quick Assistant accepts global assistants only. Project assistants are restricted to their project.
 - Assistant route and model overrides can fail if the selected route is no longer eligible. A configured routing profile needs a route with the `quick-assistant` role for Quick Assistant.
-- The assistant-feature, provider-preset and desktop changes have deterministic coverage but no new OpenPitStop verdict. The recorded OpenPitStop evidence is for `1c21762`.
+- The assistant-feature and provider-preset changes are included in the strict verification of commit `60a1e79` (CLEAN, TRUSTWORTHY 100/100). The desktop Electron build, its NSIS installer, and the interactive session's interactive behaviour remain NOT_PROVEN.
 - The Electron binary extraction failed on at least one development machine (incomplete `dist/` despite a clean exit); the desktop build is therefore `NOT_PROVEN` locally until reproduced on a clean environment. electron-builder packaging downloads its own artifacts and is expected to be unaffected, but no installer has been produced or run yet.
 
 ## Models and benchmarks

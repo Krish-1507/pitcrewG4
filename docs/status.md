@@ -25,7 +25,7 @@ Current state: milestones 0 through 15, the local assistant extension (Quick Ass
 
 A user-profile install path is implemented in `install.ps1` and `install.sh`: it builds the workspace, packages the CLI, installs into a user-owned prefix, creates a Desktop launcher, and changes only user `PATH` entries. The npm artifact is prepared as `@pitcrew/cli`; publication is pending, so the source installer is the supported path today.
 
-All 20 workspace packages build. The current deterministic suite passes 104 tests across 18 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification of clean source commit `1c21762` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 93/93 tests; evidence is recorded in [validation/release-gate.md](validation/release-gate.md). The local assistant and provider/session/desktop extensions are not yet independently verified by OpenPitStop.
+All 20 workspace packages build. The current deterministic suite passes 104 tests across 18 files, and typecheck, lint and format checks pass locally. OpenPitStop strict verification of clean source commit `60a1e79` (which includes the assistant extension and the provider/session/desktop extension) reports OK, CLEAN integrity, 0 confirmed, 0 suspicious, TRUSTWORTHY honesty 100/100 and 104/104 tests; evidence is recorded in [validation/release-gate.md](validation/release-gate.md). The earlier recorded verdict for `1c21762` remains binding for the installer work.
 
 ## Local assistant extension
 
@@ -37,7 +37,7 @@ The post-milestone extension adds:
 - saved assistants with prompt digest events, optional route/model, and project scoping;
 - daemon endpoints and Mission Control views for all four features.
 
-The extension is covered by `assistant-features.test.ts` and the existing suite. It is a draft/context feature, not a new verification path. It has no new OpenPitStop verdict yet; the recorded strict verdict remains `1c21762`.
+The extension is covered by `assistant-features.test.ts` and the existing suite. It is a draft/context feature, not a new verification path. Its verdict is included in the `60a1e79` strict verification.
 
 ## Provider, session and desktop extension
 
@@ -51,7 +51,7 @@ The newest extension adds:
 - an Electron desktop shell for Windows (window, tray, daemon lifecycle, token injection) with an NSIS installer target;
 - five vendored skills: `web-research`, `design-taste-frontend`, `unslop`, `graphify`, `ponytail` (adapted, credited, permission-scoped).
 
-Coverage: `provider-presets.test.ts` (presets, schema validation, secret hygiene, JSON extraction), updated `assistant-features.test.ts` (keyless default, HTML parsing, research modes) and `skills.test.ts` (14 skills). The extension has no new OpenPitStop verdict; the recorded strict verification remains `1c21762`.
+Coverage: `provider-presets.test.ts` (presets, schema validation, secret hygiene, JSON extraction), updated `assistant-features.test.ts` (keyless default, HTML parsing, research modes) and `skills.test.ts` (14 skills). The extension's verdict is included in the `60a1e79` strict verification (CLEAN integrity, TRUSTWORTHY 100/100). The desktop build, NSIS installer and interactive session behaviour remain NOT_PROVEN locally.
 
 ## Modules
 

@@ -284,7 +284,7 @@ Neither acceptance script is part of the deterministic suite.
 - Automatic research is bounded to one decision call and one search round per request; it is not an open-ended browsing loop.
 - The desktop app is Windows-first and unsigned; Linux/macOS Electron packaging and code signing are `NOT_PROVEN`.
 - Memory and assistants are local SQLite records without embeddings, sync, or automatic summarization.
-- The assistant-feature and provider-extension changes have deterministic tests but no new OpenPitStop evidence yet; the recorded OpenPitStop verdict belongs to `1c21762`.
+- The assistant and provider/session/desktop changes are included in the OpenPitStop strict verification of commit `60a1e79` (OK, CLEAN integrity, TRUSTWORTHY 100/100, 104/104 tests). The desktop build and installer remain NOT_PROVEN.
 - Benchmark results are fixture validation only; no model contender was run.
 - Browser QA uses a local Chrome or Edge and does not download one.
 - The referee runs on the host; a containerized referee is not implemented.

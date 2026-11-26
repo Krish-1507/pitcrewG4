@@ -2,7 +2,7 @@
 
 This record maps each gate from [roadmap.md](../roadmap.md) to executable evidence. A gate is `PASS` only when the named deterministic test or check was observed on the current source. Missing evidence is `NOT_PROVEN`, never assumed.
 
-Deterministic suite: 93 tests across 16 files, passing. Commands: `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `node scripts/release-check.mjs`.
+Deterministic suite: 104 tests across 18 files, passing (93 tests at the earlier recorded commit `1c21762`). Commands: `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `node scripts/release-check.mjs`.
 
 | Gate                                                | Status  | Evidence                                                                                                                                                                                                                                                                                                                                                                                 |
 | --------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -48,3 +48,30 @@ CI run `45401268345` is green on the pushed branch containing source commit `1c2
 Raw referee records are written to `.pitstop/verify-*.json` and `.pitstop/scan-latest.json`. These are local evidence artifacts and are not committed.
 
 Limitation: OpenPitStop's integrity detector compares the tree against the last commit. Running it on an uncommitted tree reports false `hardcoded-matches-test-expectation` findings for legitimate HTTP status codes and domain enums, so the recorded verdict was taken on a clean commit. This is documented rather than worked around by altering tests.
+
+## OpenPitStop verification of the provider/session/desktop extension
+
+Command:
+
+```bash
+node_modules/.bin/openpitstop scan
+node_modules/.bin/openpitstop verify
+```
+
+Result for source commit `60a1e79cec769da6b9d8778863f04710d839b5c3` (provider presets, native Claude adapter, keyless research, automatic research, interactive CLI session, Electron desktop shell, five vendored skills):
+
+- verdict: OK, exit code 0, not blocked, not stale;
+- integrity: CLEAN, 0 confirmed, 0 suspicious;
+- honesty: 100, TRUSTWORTHY;
+- regression risk: Low, zero deltas in tests passed/failed, security and duplication;
+- tests: 104/104 passed;
+- candidate binding: clean working tree, head `60a1e79`, tree digest `15f13b81187a572a8f2f18b16dd7de6189db9af5d97227a038142e56d8ce19e0`;
+- sealed evidence digest: `c1b9268ae3f3d38c7159ad1e027fd7f76f5c1564743d04942ccd6f0f3f77e9e2`;
+- OpenPitStop score: 52/100 (D), unchanged from the refreshed baseline scan;
+- scan risk: unchanged pre-existing heuristic findings.
+
+One test-policy reversal is part of this change and is recorded here deliberately: the previous assertion that web research is `POLICY_DENIED` when no search provider is configured asserted the reverse of this change's requirement (a built-in keyless searcher). The test was rewritten, not weakened: the still-valid unsafe-endpoint rejections (credential-bearing and non-loopback HTTP SearXNG) remain, and the new behaviour is positively asserted (keyless fallback validated, DuckDuckGo HTML parsing into deduplicated HTTPS-only sources, research modes auto/on/off). `pitstop verify` run on the uncommitted working tree reported that reversal as `testTamper / test-case-removed` — the detector compares test names against the last commit, and the working tree was not yet committed. The verdict above was taken on the clean commit, where the same suite shows zero integrity findings.
+
+Still NOT_PROVEN for this extension: the Electron desktop build (the Electron binary extraction produced an incomplete `node_modules/electron/dist` on the development machine despite a clean installer exit; `pnpm run preflight:electron` in `apps/desktop` now fails loudly with the repair steps), the produced NSIS installer, Linux/macOS desktop packaging, and the interactive CLI session's interactive behaviour (structural code only; manual acceptance pending). The deterministic suite, typecheck, lint and format checks pass on the committed tree.
+
+This document is updated after the verified source commit. The verdict binds to commit `60a1e79` exactly; a later housekeeping commit removes the dead `packages/config/src/hardware.ts` stub (comment-only, unreferenced) and updates documentation, which does not affect the recorded evidence.

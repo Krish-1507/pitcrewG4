@@ -25,7 +25,7 @@ Each milestone ships only when the deterministic suite passes and the recorded e
 
 The local assistant extension shipped Quick Assistant, web research, global/project memory notes, and saved assistants. Quick Assistant is explicitly a draft path and does not change the verification standard. It has deterministic coverage in `assistant-features.test.ts`.
 
-The provider/session/desktop extension shipped named provider presets with a native Claude adapter, hardware-aware local-model onboarding, a built-in keyless DuckDuckGo searcher with automatic research, an interactive CLI session, an Electron desktop shell (Windows first), and five vendored community skills (`web-research`, `design-taste-frontend`, `unslop`, `graphify`, `ponytail`). These are draft/context features; they do not change the verification standard. They have deterministic coverage in `provider-presets.test.ts`, updated assistant tests and `skills.test.ts`; they do not yet have an OpenPitStop verdict, so the recorded strict verification remains bound to `1c21762`.
+The provider/session/desktop extension shipped named provider presets with a native Claude adapter, hardware-aware local-model onboarding, a built-in keyless DuckDuckGo searcher with automatic research, an interactive CLI session, an Electron desktop shell (Windows first), and five vendored community skills (`web-research`, `design-taste-frontend`, `unslop`, `graphify`, `ponytail`). These are draft/context features; they do not change the verification standard. They have deterministic coverage in `provider-presets.test.ts`, updated assistant tests and `skills.test.ts`. Their verdict is included in the strict verification of commit `60a1e79` (OK, CLEAN integrity, TRUSTWORTHY 100/100, 104/104 tests); the desktop build and installer remain NOT_PROVEN.
 
 ## Delivered milestone detail
 
@@ -65,7 +65,7 @@ A competition-ready profile under `profiles/g4/` that maps Context Packs, candid
 
 Clean-machine verification across Windows, Linux and macOS, with and without Docker, local models, OpenPitStop present or missing, interrupted missions, dirty trees, large repos and monorepos. Missing OpenPitStop yields NOT_PROVEN, never a pass.
 
-Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment. OpenPitStop strict verification of commit `1c21762` reports OK, CLEAN integrity, TRUSTWORTHY honesty and 93/93 tests.
+Ten of the eleven release-gate items now have executed evidence. Windows and Linux are covered by local runs and CI. macOS clean-install verification has not been exercised and is recorded as NOT_PROVEN. Model-backed benchmark contenders remain unexecuted because no provider is configured in this environment. OpenPitStop strict verification of commit `60a1e79` reports OK, CLEAN integrity, TRUSTWORTHY honesty 100/100 and 104/104 tests; the earlier verdict for `1c21762` (93/93) remains recorded.
 
 ## Release gate
 
